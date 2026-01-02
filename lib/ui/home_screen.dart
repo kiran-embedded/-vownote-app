@@ -282,9 +282,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         onChanged: _filterBookings,
                         decoration: InputDecoration(
                           hintText: 'Search',
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.search,
-                            color: Colors.grey,
+                            color:
+                                Theme.of(context).brightness == Brightness.light
+                                ? Colors.black54
+                                : Colors.grey,
                           ),
                           filled: true,
                           fillColor: Theme.of(context).cardTheme.color,
@@ -324,10 +327,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               selectedColor: const Color(0xFFD4AF37),
                               labelStyle: TextStyle(
-                                color: isSelected ? Colors.white : Colors.grey,
+                                color: isSelected
+                                    ? Colors.white
+                                    : (Theme.of(context).brightness ==
+                                              Brightness.light
+                                          ? Colors.black87
+                                          : Colors.grey),
                                 fontWeight: isSelected
                                     ? FontWeight.bold
-                                    : FontWeight.normal,
+                                    : FontWeight.w500,
                               ),
                               backgroundColor: Theme.of(
                                 context,

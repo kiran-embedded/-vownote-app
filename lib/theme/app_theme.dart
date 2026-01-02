@@ -36,11 +36,11 @@ class AppTheme {
     textTheme: _textTheme
         .copyWith(
           bodyLarge: GoogleFonts.inter(
-            color: Colors.black87,
+            color: Colors.black, // Pure black for better contrast
             fontWeight: FontWeight.w400,
           ),
           bodyMedium: GoogleFonts.inter(
-            color: Colors.black54,
+            color: Colors.black87, // Darker grey for better contrast
             fontWeight: FontWeight.w400,
           ),
           displayLarge: GoogleFonts.inter(
@@ -53,8 +53,8 @@ class AppTheme {
           ),
         )
         .apply(bodyColor: Colors.black, displayColor: Colors.black),
-    iconTheme: const IconThemeData(color: Colors.black87),
-    dividerTheme: DividerThemeData(color: Colors.grey.withOpacity(0.15)),
+    iconTheme: const IconThemeData(color: Colors.black),
+    dividerTheme: DividerThemeData(color: Colors.black.withOpacity(0.1)),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: CupertinoPageTransitionsBuilder(),

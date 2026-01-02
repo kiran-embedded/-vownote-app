@@ -87,7 +87,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[500],
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.black87
+                  : Colors.grey[500],
               letterSpacing: 1.2,
             ),
           ),
