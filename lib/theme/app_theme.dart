@@ -39,6 +39,12 @@ class AppTheme {
     ),
     iconTheme: const IconThemeData(color: Colors.black),
     dividerTheme: DividerThemeData(color: Colors.grey.withOpacity(0.2)),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 
   // iOS 18 Dark Theme (OLED Friendly)
@@ -89,6 +95,12 @@ class AppTheme {
         borderSide: BorderSide.none,
       ),
       hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
     ),
   );
 }
