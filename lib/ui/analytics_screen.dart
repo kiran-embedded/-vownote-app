@@ -16,6 +16,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<Booking> _allBookings = [];
   bool _isLoading = true;
 
+  double _totalRevenue = 0;
+  double _totalCollected = 0;
+  double _totalDue = 0;
+  int _totalBookingsCount = 0;
+  List<String> _sortedMonths = [];
+  Map<String, int> _monthCounts = {};
+
   @override
   void initState() {
     super.initState();
@@ -24,8 +31,40 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadData() async {
     final bookings = await DatabaseService().getBookings();
+
+    // Perform calculations in one pass to save CPU/RAM
+    double revenue = 0;
+    double collected = 0;
+    double due = 0;
+    final Map<String, int> counts = {};
+
+    for (var b in bookings) {
+      revenue += b.totalAmount;
+      collected += b.receivedAmount;
+      due += b.pendingAmount;
+
+      if (b.eventDates.isNotEmpty) {
+        final firstDate = List<DateTime>.from(b.eventDates)..sort();
+        final key = DateFormat('MMMM yyyy').format(firstDate.first);
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+
+    final sorted = counts.keys.toList()
+      ..sort((a, b) {
+        final da = DateFormat('MMMM yyyy').parse(a);
+        final db = DateFormat('MMMM yyyy').parse(b);
+        return da.compareTo(db);
+      });
+
     setState(() {
       _allBookings = bookings;
+      _totalRevenue = revenue;
+      _totalCollected = collected;
+      _totalDue = due;
+      _totalBookingsCount = bookings.length;
+      _monthCounts = counts;
+      _sortedMonths = sorted;
       _isLoading = false;
     });
   }
@@ -35,32 +74,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    final totalRevenue = _allBookings.fold(
-      0.0,
-      (sum, b) => sum + b.totalAmount,
-    );
-    final totalCollected = _allBookings.fold(
-      0.0,
-      (sum, b) => sum + b.receivedAmount,
-    );
-    final totalDue = _allBookings.fold(0.0, (sum, b) => sum + b.pendingAmount);
-    final totalBookings = _allBookings.length;
-
-    final Map<String, int> monthCounts = {};
-    for (var b in _allBookings) {
-      if (b.eventDates.isEmpty) continue;
-      final firstDate = List<DateTime>.from(b.eventDates)..sort();
-      final key = DateFormat('MMMM yyyy').format(firstDate.first);
-      monthCounts[key] = (monthCounts[key] ?? 0) + 1;
-    }
-
-    final sortedMonths = monthCounts.keys.toList()
-      ..sort((a, b) {
-        final da = DateFormat('MMMM yyyy').parse(a);
-        final db = DateFormat('MMMM yyyy').parse(b);
-        return da.compareTo(db);
-      });
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -92,10 +105,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildLuxeSummary(
-                      totalRevenue,
-                      totalCollected,
-                      totalDue,
-                      totalBookings,
+                      _totalRevenue,
+                      _totalCollected,
+                      _totalDue,
+                      _totalBookingsCount,
                       isDark,
                     )
                     .animate()
@@ -124,12 +137,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
-                final month = sortedMonths[index];
-                return _buildMonthTile(month, monthCounts[month]!, isDark)
+                final month = _sortedMonths[index];
+                final count = _monthCounts[month] ?? 0;
+                return _buildMonthTile(month, count, isDark)
                     .animate()
                     .fadeIn(delay: (index * 50).ms)
                     .slideX(begin: 0.1, curve: Curves.easeOut);
-              }, childCount: sortedMonths.length),
+              }, childCount: _sortedMonths.length),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 60)),

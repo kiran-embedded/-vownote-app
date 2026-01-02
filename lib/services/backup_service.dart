@@ -10,6 +10,17 @@ import 'package:vownote/services/database_service.dart';
 import 'package:intl/intl.dart';
 
 class BackupService {
+  // Helper for background JSON encoding
+  static String _encodeBookings(List<Booking> bookings) {
+    return jsonEncode(bookings.map((e) => e.toMap()).toList());
+  }
+
+  // Helper for background JSON decoding
+  static List<Booking> _decodeBookings(String jsonString) {
+    final List<dynamic> jsonList = jsonDecode(jsonString);
+    return jsonList.map((map) => Booking.fromMap(map)).toList();
+  }
+
   // Request: Manage External Storage for Android 11+
   Future<bool> requestStoragePermission() async {
     if (Platform.isAndroid) {
@@ -27,8 +38,8 @@ class BackupService {
     try {
       final db = DatabaseService();
       final bookings = await db.getBookings();
-      // Even if empty, we save [] to reflect the current state (e.g. after deletion)
-      final data = jsonEncode(bookings.map((e) => e.toMap()).toList());
+      // Use compute to move encoding off the main thread
+      final data = await compute(_encodeBookings, bookings);
 
       if (Platform.isAndroid) {
         if (await Permission.manageExternalStorage.isGranted) {
@@ -55,7 +66,8 @@ class BackupService {
       throw Exception("No bookings to backup.");
     }
 
-    final data = jsonEncode(bookings.map((e) => e.toMap()).toList());
+    // Use compute to move encoding off the main thread
+    final data = await compute(_encodeBookings, bookings);
     const fileName = 'vownote_master_backup.json';
 
     // 1. Try to save to "Documents/VowNote" (Persistent Master File)
@@ -75,7 +87,7 @@ class BackupService {
       debugPrint('Manual export to storage failed, falling back: $e');
     }
 
-    // 2. Fallback to Temporary & Share (using timestamp for uniqueness in share sheet)
+    // 2. Fallback to Temporary & Share
     final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final tempFileName = 'VowNote_Export_$dateStr.json';
     final directory = await getTemporaryDirectory();
@@ -97,16 +109,18 @@ class BackupService {
       final jsonString = await file.readAsString();
 
       try {
-        final List<dynamic> jsonList = jsonDecode(jsonString);
-        if (jsonList.isEmpty) return 0;
+        // Use compute to move decoding off the main thread
+        final List<Booking> importedBookings = await compute(
+          _decodeBookings,
+          jsonString,
+        );
+        if (importedBookings.isEmpty) return 0;
 
         final db = DatabaseService();
         int count = 0;
-        for (var map in jsonList) {
-          if (map['id'] != null && map['brideName'] != null) {
-            await db.insertBooking(Booking.fromMap(map));
-            count++;
-          }
+        for (var booking in importedBookings) {
+          await db.insertBooking(booking);
+          count++;
         }
         return count;
       } catch (e) {

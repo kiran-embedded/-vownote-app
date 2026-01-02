@@ -11,6 +11,12 @@ final ThemeService themeService = ThemeService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // RAM Optimization: Limit image cache size
+  PaintingBinding.instance.imageCache.maximumSize = 50;
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      10 * 1024 * 1024; // 10MB
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
   );
