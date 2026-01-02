@@ -33,12 +33,28 @@ class AppTheme {
         side: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1),
       ),
     ),
-    textTheme: _textTheme.apply(
-      bodyColor: Colors.black,
-      displayColor: Colors.black,
-    ),
-    iconTheme: const IconThemeData(color: Colors.black),
-    dividerTheme: DividerThemeData(color: Colors.grey.withOpacity(0.2)),
+    textTheme: _textTheme
+        .copyWith(
+          bodyLarge: GoogleFonts.inter(
+            color: Colors.black87,
+            fontWeight: FontWeight.w400,
+          ),
+          bodyMedium: GoogleFonts.inter(
+            color: Colors.black54,
+            fontWeight: FontWeight.w400,
+          ),
+          displayLarge: GoogleFonts.inter(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+          titleLarge: GoogleFonts.inter(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        )
+        .apply(bodyColor: Colors.black, displayColor: Colors.black),
+    iconTheme: const IconThemeData(color: Colors.black87),
+    dividerTheme: DividerThemeData(color: Colors.grey.withOpacity(0.15)),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: CupertinoPageTransitionsBuilder(),
@@ -81,17 +97,33 @@ class AppTheme {
         side: BorderSide(color: Colors.white.withOpacity(0.1), width: 0.5),
       ),
     ),
-    textTheme: _textTheme.apply(
-      bodyColor: Colors.white,
-      displayColor: Colors.white,
-    ),
+    textTheme: _textTheme
+        .copyWith(
+          bodyLarge: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w400,
+          ),
+          bodyMedium: GoogleFonts.inter(
+            color: Colors.white70,
+            fontWeight: FontWeight.w400,
+          ),
+          displayLarge: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+          titleLarge: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        )
+        .apply(bodyColor: Colors.white, displayColor: Colors.white),
     iconTheme: const IconThemeData(color: Colors.white),
-    dividerTheme: DividerThemeData(color: Colors.grey.withOpacity(0.3)),
+    dividerTheme: DividerThemeData(color: Colors.white.withOpacity(0.1)),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFF1C1C1E),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),

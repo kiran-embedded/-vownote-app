@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,6 +10,43 @@ import 'package:vownote/services/database_service.dart';
 import 'package:intl/intl.dart';
 
 class BackupService {
+  // Request: Manage External Storage for Android 11+
+  Future<bool> requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      var status = await Permission.manageExternalStorage.status;
+      if (!status.isGranted) {
+        status = await Permission.manageExternalStorage.request();
+      }
+      return status.isGranted;
+    }
+    return true;
+  }
+
+  // Silent Backup: Saves to /Documents/VowNote without UI
+  Future<void> silentBackup() async {
+    try {
+      final db = DatabaseService();
+      final bookings = await db.getBookings();
+      if (bookings.isEmpty) return;
+
+      final data = jsonEncode(bookings.map((e) => e.toMap()).toList());
+
+      if (Platform.isAndroid) {
+        if (await Permission.manageExternalStorage.isGranted) {
+          final directory = Directory('/storage/emulated/0/Documents/VowNote');
+          if (!await directory.exists()) {
+            await directory.create(recursive: true);
+          }
+          final file = File('${directory.path}/vownote_master_backup.json');
+          await file.writeAsString(data);
+          debugPrint('Silent backup saved to: ${file.path}');
+        }
+      }
+    } catch (e) {
+      debugPrint('Silent backup failed: $e');
+    }
+  }
+
   // Export: Shared storage (/Documents/VowNote) or Share Sheet
   Future<String> exportBackup() async {
     final db = DatabaseService();
@@ -25,29 +63,21 @@ class BackupService {
     // 1. Try to save to "Documents/VowNote" (Persistent)
     try {
       if (Platform.isAndroid) {
-        var status = await Permission.manageExternalStorage.status;
-        if (!status.isGranted) {
-          status = await Permission.manageExternalStorage.request();
-        }
-
-        // Variable validation logic for storage path
-        if (status.isGranted) {
-          Directory? directory = Directory(
-            '/storage/emulated/0/Documents/VowNote',
-          );
+        if (await requestStoragePermission()) {
+          final directory = Directory('/storage/emulated/0/Documents/VowNote');
           if (!await directory.exists()) {
-            directory = await directory.create(recursive: true);
+            await directory.create(recursive: true);
           }
           final file = File('${directory.path}/$fileName');
           await file.writeAsString(data);
-          return file.path; // Saved to global storage
+          return file.path;
         }
       }
     } catch (e) {
-      // Fallback if permission denied
+      debugPrint('Manual export to storage failed, falling back: $e');
     }
 
-    // 2. Fallback to Temporary & Share (Existing logic)
+    // 2. Fallback to Temporary & Share
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsString(data);
@@ -55,7 +85,7 @@ class BackupService {
     return file.path;
   }
 
-  // Import: Organs File Picker, parses JSON, inserts to DB
+  // Import: File Picker, parses JSON, inserts to DB
   Future<int> importBackup() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -73,7 +103,6 @@ class BackupService {
         final db = DatabaseService();
         int count = 0;
         for (var map in jsonList) {
-          // Validate structure loosely
           if (map['id'] != null && map['brideName'] != null) {
             await db.insertBooking(Booking.fromMap(map));
             count++;

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vownote/services/backup_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:vownote/main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -34,18 +35,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _buildSectionTitle('Data Backup & Restore'),
                 _buildBackupSection(),
+                _buildSectionTitle('Global Persistence'),
+                _buildStorageStatusSection(),
                 _buildSectionTitle('App'),
                 _buildAppSection(),
-                const SizedBox(height: 40),
+                const SizedBox(height: 60),
                 Center(
-                  child: Text(
-                    'VowNote Professional v1.0',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: CupertinoColors.systemGrey,
-                    ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: Color(0xFFD4AF37),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'AUTHENTIC PRODUCT',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'VowNote Professional v1.1',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '(c) 2026 kiran-embedded',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          color: CupertinoColors.systemGrey.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 40),
               ],
             ),
             if (_isLoading)
@@ -196,6 +244,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStorageStatusSection() {
+    return FutureBuilder<bool>(
+      future: Permission.manageExternalStorage.isGranted,
+      builder: (context, snapshot) {
+        final isGranted = snapshot.data ?? false;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(
+                  isGranted ? Icons.verified_user : Icons.warning_amber_rounded,
+                  color: isGranted ? Colors.blue : Colors.orange,
+                ),
+                title: Text(
+                  isGranted
+                      ? 'Global Storage Active'
+                      : 'Global Storage Inactive',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                subtitle: Text(
+                  isGranted
+                      ? 'Saved in: /Documents/VowNote'
+                      : 'Permission required for persistence after app deletion',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                trailing: !isGranted
+                    ? CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: const Text('Enable'),
+                        onPressed: () async {
+                          await _backupService.requestStoragePermission();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

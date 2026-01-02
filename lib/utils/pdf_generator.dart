@@ -15,292 +15,347 @@ class PdfGenerator {
   }) async {
     final pdf = pw.Document();
 
-    // Theme Colors
-    final baseColor = PdfColors.amber800;
-    final accentColor = PdfColors.amber100;
-    final textColor = isDarkMode ? PdfColors.white : PdfColors.black;
-    final rowEvenColor = isDarkMode ? PdfColors.grey900 : PdfColors.white;
-    final rowOddColor = isDarkMode
-        ? PdfColors.grey800
-        : accentColor; // Darker table rows for dark mode
+    // Premium Theme (Gold & Dark)
+    final goldColor = PdfColor.fromInt(0xFFD4AF37);
+    final backgroundColor = isDarkMode
+        ? PdfColor.fromInt(0xFF000000)
+        : PdfColors.white;
+    final cardColor = isDarkMode
+        ? PdfColor.fromInt(0xFF1C1C1E)
+        : PdfColor.fromInt(0xFFF2F2F7);
+    final primaryTextColor = isDarkMode
+        ? PdfColors.white
+        : PdfColor.fromInt(0xFF1C1C1E);
+    final secondaryTextColor = isDarkMode
+        ? PdfColors.grey400
+        : PdfColors.grey700;
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 40),
         theme: pw.ThemeData.withFont(
           base: await PdfGoogleFonts.interRegular(),
           bold: await PdfGoogleFonts.interBold(),
+          italic: await PdfGoogleFonts.interItalic(),
         ),
+        header: (pw.Context context) {
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 20),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'VowNote',
+                      style: pw.TextStyle(
+                        fontSize: 32,
+                        fontWeight: pw.FontWeight.bold,
+                        color: goldColor,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    pw.Container(
+                      height: 2,
+                      width: 40,
+                      color: goldColor,
+                      margin: const pw.EdgeInsets.only(top: 2, bottom: 4),
+                    ),
+                    pw.Text(
+                      'PRO LUXE EDITION',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                        color: secondaryTextColor,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      monthName.toUpperCase(),
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                    pw.Text(
+                      'Booking Summary Report',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+        footer: (pw.Context context) {
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(top: 20),
+            padding: const pw.EdgeInsets.only(top: 10),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(
+                top: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+              ),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Generated via VowNote Professional v1.0',
+                      style: pw.TextStyle(
+                        fontSize: 7,
+                        color: PdfColors.grey500,
+                      ),
+                    ),
+                    pw.UrlLink(
+                      child: pw.Text(
+                        'github.com/kiran-embedded/-vownote-app',
+                        style: const pw.TextStyle(
+                          fontSize: 7,
+                          color: PdfColors.blue,
+                        ),
+                      ),
+                      destination:
+                          'https://github.com/kiran-embedded/-vownote-app',
+                    ),
+                  ],
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                ),
+                pw.Text(
+                  '© 2026 kiran-embedded | Professional Version',
+                  style: pw.TextStyle(
+                    fontSize: 7,
+                    fontStyle: pw.FontStyle.italic,
+                    color: PdfColors.grey500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
         build: (pw.Context context) {
           return [
-            // Header
+            // Analytics Dashboard
+            pw.Row(
+              children: [
+                _buildModernStat(
+                  'BOOKINGS',
+                  '${bookings.length}',
+                  goldColor,
+                  isDarkMode,
+                ),
+                pw.SizedBox(width: 15),
+                _buildModernStat(
+                  'TOTAL VALUE',
+                  'Rs. ${_calculateTotal(bookings)}',
+                  PdfColors.green800,
+                  isDarkMode,
+                ),
+                pw.SizedBox(width: 15),
+                _buildModernStat(
+                  'DUE BALANCE',
+                  'Rs. ${_calculatePending(bookings)}',
+                  PdfColors.red800,
+                  isDarkMode,
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 30),
+
+            // Table Header
             pw.Container(
               decoration: pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: baseColor, width: 2),
+                color: goldColor,
+                borderRadius: const pw.BorderRadius.vertical(
+                  top: pw.Radius.circular(4),
                 ),
               ),
-              padding: const pw.EdgeInsets.only(bottom: 10),
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
               child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'VowNote',
-                        style: pw.TextStyle(
-                          fontSize: 28,
-                          fontWeight: pw.FontWeight.bold,
-                          color: baseColor,
-                        ),
-                      ),
-                      pw.Text(
-                        'Professional Wedding Management',
-                        style: pw.TextStyle(
-                          fontSize: 10,
-                          color: isDarkMode
-                              ? PdfColors.grey400
-                              : PdfColors.grey700,
-                        ),
-                      ),
-                    ],
+                  pw.Expanded(flex: 2, child: _thinHeader('DATE')),
+                  pw.Expanded(flex: 4, child: _thinHeader('COUPLE DETAILS')),
+                  pw.Expanded(
+                    flex: 4,
+                    child: _thinHeader('LOCATION & CONTACT'),
                   ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        monthName.toUpperCase(),
-                        style: pw.TextStyle(
-                          fontSize: 18,
-                          fontWeight: pw.FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      pw.Text(
-                        'Monthly Report',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          color: isDarkMode
-                              ? PdfColors.grey400
-                              : PdfColors.grey,
-                        ),
-                      ),
-                    ],
+                  pw.Expanded(
+                    flex: 3,
+                    child: _thinHeader(
+                      'FINANCIALS',
+                      align: pw.Alignment.centerRight,
+                    ),
                   ),
                 ],
               ),
             ),
-            pw.SizedBox(height: 30),
 
-            // Statistics Summary
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatCard(
-                  'Total Bookings',
-                  '${bookings.length}',
-                  baseColor,
-                  isDarkMode,
+            // Luxury List
+            ...bookings.asMap().entries.map((entry) {
+              final b = entry.value;
+              final useBg = entry.key % 2 != 0;
+              return pw.Container(
+                decoration: pw.BoxDecoration(
+                  color: useBg ? cardColor : backgroundColor,
                 ),
-                _buildStatCard(
-                  'Total Revenue',
-                  'Rs. ${_calculateTotal(bookings)}',
-                  PdfColors.green700,
-                  isDarkMode,
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 12,
                 ),
-                _buildStatCard(
-                  'Pending',
-                  'Rs. ${_calculatePending(bookings)}',
-                  PdfColors.red700,
-                  isDarkMode,
-                ),
-              ],
-            ),
-
-            pw.SizedBox(height: 30),
-
-            // Table
-            pw.Table(
-              border: null,
-              columnWidths: {
-                0: const pw.FixedColumnWidth(40), // Date
-                1: const pw.FlexColumnWidth(3), // Details
-                2: const pw.FlexColumnWidth(3), // Address
-                3: const pw.FlexColumnWidth(2), // Financials
-              },
-              children: [
-                // Header Row
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(color: baseColor),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildHeaderCell('Date'),
-                    _buildHeaderCell('Couple'),
-                    _buildHeaderCell('Address / Contact'),
-                    _buildHeaderCell('Financials'),
-                  ],
-                ),
-                // Data Rows
-                ...bookings.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final b = entry.value;
-                  final isEven = index % 2 == 0;
-
-                  return pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: isEven ? rowEvenColor : rowOddColor,
-                    ),
-                    children: [
-                      // Date with ALL dates
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(6),
-                        alignment: pw.Alignment.topLeft,
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            ...b.eventDates.map(
-                              (date) => pw.Text(
-                                DateFormat('dd MMM').format(date),
+                    // DATES
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: b.eventDates
+                            .map(
+                              (d) => pw.Text(
+                                DateFormat('dd MMM').format(d),
                                 style: pw.TextStyle(
                                   fontSize: 9,
                                   fontWeight: pw.FontWeight.bold,
-                                  color: textColor,
+                                  color: primaryTextColor,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            )
+                            .toList(),
                       ),
-                      // Couple Details
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(6),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              b.brideName,
-                              style: pw.TextStyle(
-                                fontWeight: pw.FontWeight.bold,
-                                color: textColor,
-                              ),
+                    ),
+                    // COUPLE
+                    pw.Expanded(
+                      flex: 4,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            b.brideName,
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: primaryTextColor,
                             ),
-                            if (b.groomName.isNotEmpty)
-                              pw.Text(
-                                "w/ ${b.groomName}",
-                                style: pw.TextStyle(
-                                  fontSize: 10,
-                                  color: isDarkMode
-                                      ? PdfColors.grey400
-                                      : PdfColors.grey700,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      // Address / Contact
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(6),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
+                          ),
+                          if (b.groomName.isNotEmpty)
                             pw.Text(
-                              b.phoneNumber,
-                              style: pw.TextStyle(
-                                fontSize: 10,
-                                fontWeight: pw.FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              b.address,
+                              'w/ ${b.groomName}',
                               style: pw.TextStyle(
                                 fontSize: 9,
-                                color: isDarkMode
-                                    ? PdfColors.grey400
-                                    : PdfColors.grey600,
+                                color: secondaryTextColor,
+                                fontStyle: pw.FontStyle.italic,
                               ),
                             ),
-                          ],
-                        ),
+                        ],
                       ),
-                      // Financials
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(6),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.end,
-                          children: [
+                    ),
+                    // CONTACT
+                    pw.Expanded(
+                      flex: 4,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            b.phoneNumber,
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            b.address,
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              color: secondaryTextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // FINANCIALS
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            'Total: Rs. ${b.totalAmount.toStringAsFixed(0)}',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              color: primaryTextColor,
+                            ),
+                          ),
+                          pw.Text(
+                            'Paid: Rs. ${b.receivedAmount.toStringAsFixed(0)}',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.green700,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          if (b.pendingAmount > 0)
                             pw.Text(
-                              "Tot: ${b.totalAmount.toStringAsFixed(0)}",
+                              'Due: Rs. ${b.pendingAmount.toStringAsFixed(0)}',
                               style: pw.TextStyle(
-                                fontSize: 10,
-                                color: textColor,
+                                fontSize: 9,
+                                color: PdfColors.red700,
+                                fontWeight: pw.FontWeight.bold,
                               ),
                             ),
-                            pw.Text(
-                              "Rec: ${b.receivedAmount.toStringAsFixed(0)}",
-                              style: const pw.TextStyle(
-                                fontSize: 10,
-                                color: PdfColors.green700,
+                          if (b.isCompleted)
+                            pw.Container(
+                              margin: const pw.EdgeInsets.only(top: 4),
+                              padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
                               ),
-                            ),
-                            if (b.pendingAmount > 0)
-                              pw.Text(
-                                "Due: ${b.pendingAmount.toStringAsFixed(0)}",
-                                style: pw.TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: PdfColors.red700,
+                              decoration: const pw.BoxDecoration(
+                                color: PdfColors.grey200,
+                                borderRadius: pw.BorderRadius.all(
+                                  pw.Radius.circular(2),
                                 ),
                               ),
-                          ],
-                        ),
+                              child: pw.Text(
+                                'COMPLETED',
+                                style: pw.TextStyle(
+                                  fontSize: 6,
+                                  color: PdfColors.grey700,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
-                  );
-                }),
-              ],
-            ),
-
-            pw.SizedBox(height: 20),
-            pw.Divider(
-              color: isDarkMode ? PdfColors.grey700 : PdfColors.grey300,
-            ),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Generated via VowNote Professional',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    color: isDarkMode ? PdfColors.grey500 : PdfColors.grey500,
-                  ),
-                ),
-                pw.UrlLink(
-                  child: pw.Text(
-                    'https://github.com/kiran-embedded/-vownote-app',
-                    style: const pw.TextStyle(
-                      fontSize: 8,
-                      color: PdfColors.blue,
-                      decoration: pw.TextDecoration.underline,
                     ),
-                  ),
-                  destination: 'https://github.com/kiran-embedded/-vownote-app',
+                  ],
                 ),
-              ],
-            ),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Text(
-                'Professional Version (c) 2026 kiran-embedded',
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  fontStyle: pw.FontStyle.italic,
-                  color: isDarkMode ? PdfColors.grey600 : PdfColors.grey400,
-                ),
-              ),
-            ),
+              );
+            }).toList(),
+
+            // Summary Table Bottom
+            pw.Container(height: 1, color: goldColor),
           ];
         },
       ),
@@ -317,52 +372,62 @@ class PdfGenerator {
     ], text: 'Monthly Booking Report - $monthName');
   }
 
-  static pw.Widget _buildStatCard(
-    String title,
-    String value,
-    PdfColor color,
-    bool isDarkMode,
-  ) {
+  static pw.Widget _thinHeader(
+    String text, {
+    pw.Alignment align = pw.Alignment.centerLeft,
+  }) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        color: isDarkMode ? PdfColors.grey900 : PdfColors.white,
-        border: pw.Border.all(color: color, width: 1),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      width: 150,
-      child: pw.Column(
-        children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              fontSize: 10,
-              color: isDarkMode ? PdfColors.grey400 : PdfColors.grey700,
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildHeaderCell(String text) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
+      alignment: align,
       child: pw.Text(
         text,
         style: pw.TextStyle(
           color: PdfColors.white,
           fontWeight: pw.FontWeight.bold,
-          fontSize: 11,
+          fontSize: 8,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _buildModernStat(
+    String title,
+    String value,
+    PdfColor accent,
+    bool isDarkMode,
+  ) {
+    return pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: isDarkMode
+              ? PdfColor.fromInt(0xFF1C1C1E)
+              : PdfColor.fromInt(0xFFF2F2F7),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+          border: pw.Border(left: pw.BorderSide(color: accent, width: 4)),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              title,
+              style: pw.TextStyle(
+                fontSize: 7,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey500,
+                letterSpacing: 1,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                color: accent,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -370,11 +435,11 @@ class PdfGenerator {
 
   static String _calculateTotal(List<Booking> bookings) {
     double total = bookings.fold(0, (sum, item) => sum + item.totalAmount);
-    return total.toStringAsFixed(0);
+    return NumberFormat('#,##,###').format(total);
   }
 
   static String _calculatePending(List<Booking> bookings) {
     double total = bookings.fold(0, (sum, item) => sum + item.pendingAmount);
-    return total.toStringAsFixed(0);
+    return NumberFormat('#,##,###').format(total);
   }
 }

@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:vownote/models/booking.dart';
+import 'package:vownote/services/backup_service.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -21,7 +22,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2, // Bump Version
+      version: 3, // Bump Version to 3
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE bookings(
@@ -31,9 +32,10 @@ class DatabaseService {
             eventDates TEXT,
             totalAmount REAL,
             advanceAmount REAL,
-            receivedAmount REAL, -- New Column
+            receivedAmount REAL,
             address TEXT,
             phoneNumber TEXT,
+            notes TEXT, -- New Column
             createdAt TEXT,
             updatedAt TEXT
           )
@@ -44,6 +46,9 @@ class DatabaseService {
           await db.execute(
             'ALTER TABLE bookings ADD COLUMN receivedAmount REAL',
           );
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE bookings ADD COLUMN notes TEXT');
         }
       },
     );
@@ -56,6 +61,7 @@ class DatabaseService {
       booking.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    BackupService().silentBackup();
   }
 
   Future<void> updateBooking(Booking booking) async {
@@ -66,6 +72,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [booking.id],
     );
+    BackupService().silentBackup();
   }
 
   Future<List<Booking>> getBookings() async {
@@ -82,6 +89,7 @@ class DatabaseService {
   Future<void> deleteBooking(String id) async {
     final db = await database;
     await db.delete('bookings', where: 'id = ?', whereArgs: [id]);
+    BackupService().silentBackup();
   }
 
   // For monthly filtering

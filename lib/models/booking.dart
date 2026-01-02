@@ -12,6 +12,7 @@ class Booking {
   final double receivedAmount; // New field for total collected
   final String address;
   final String phoneNumber;
+  final String notes; // New Professional Feature
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -25,11 +26,10 @@ class Booking {
     double? receivedAmount, // Optional in constructor, defaults to advance
     required this.address,
     required this.phoneNumber,
+    this.notes = '',
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : receivedAmount =
-           receivedAmount ??
-           advanceAmount, // Default to advance if not provided
+  }) : receivedAmount = receivedAmount ?? advanceAmount,
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
@@ -61,6 +61,7 @@ class Booking {
       'receivedAmount': receivedAmount,
       'address': address,
       'phoneNumber': phoneNumber,
+      'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -81,6 +82,7 @@ class Booking {
           map['advanceAmount'], // Backwards compatibility
       address: map['address'],
       phoneNumber: map['phoneNumber'],
+      notes: map['notes'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
     );

@@ -64,31 +64,50 @@ class NotificationService {
 
   Future<void> scheduleBookingReminders(Booking booking) async {
     for (var date in booking.eventDates) {
-      // Schedule for 9:00 AM on the wedding day
       final scheduledDate = DateTime(date.year, date.month, date.day, 9, 0);
-
       if (scheduledDate.isBefore(DateTime.now())) continue;
 
-      // Unique ID based on booking ID hash + date hash
       final notificationId = (booking.id.hashCode + date.hashCode).abs();
 
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        notificationId,
-        'Wedding Today: ${booking.brideName}',
-        'Reminder regarding wedding event today at ${booking.address}',
-        tz.TZDateTime.from(scheduledDate, tz.local),
-        const fln.NotificationDetails(
-          android: fln.AndroidNotificationDetails(
-            'wedding_reminders',
-            'Wedding Reminders',
-            channelDescription: 'Notifications for wedding events',
-            importance: fln.Importance.max,
-            priority: fln.Priority.high,
+      try {
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          notificationId,
+          'Wedding Today: ${booking.brideName}',
+          'Reminder regarding wedding event today at ${booking.address}',
+          tz.TZDateTime.from(scheduledDate, tz.local),
+          const fln.NotificationDetails(
+            android: fln.AndroidNotificationDetails(
+              'wedding_reminders',
+              'Wedding Reminders',
+              channelDescription: 'Notifications for wedding events',
+              importance: fln.Importance.max,
+              priority: fln.Priority.high,
+            ),
+            iOS: fln.DarwinNotificationDetails(),
           ),
-          iOS: fln.DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
-      );
+          androidScheduleMode: fln.AndroidScheduleMode.exact,
+        );
+      } catch (e) {
+        // Fallback to inexact if exact fails (prevents crash/error)
+        try {
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            notificationId,
+            'Wedding Today: ${booking.brideName}',
+            'Reminder regarding wedding event today at ${booking.address}',
+            tz.TZDateTime.from(scheduledDate, tz.local),
+            const fln.NotificationDetails(
+              android: fln.AndroidNotificationDetails(
+                'wedding_reminders',
+                'Wedding Reminders',
+                importance: fln.Importance.defaultImportance,
+                priority: fln.Priority.defaultPriority,
+              ),
+              iOS: fln.DarwinNotificationDetails(),
+            ),
+            androidScheduleMode: fln.AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        } catch (_) {}
+      }
     }
   }
 

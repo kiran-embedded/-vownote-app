@@ -4,6 +4,7 @@ import 'package:vownote/theme/app_theme.dart';
 import 'package:vownote/services/theme_service.dart';
 import 'package:vownote/ui/home_screen.dart';
 import 'package:vownote/services/notification_service.dart';
+import 'package:vownote/services/backup_service.dart';
 
 // Global access to theme service
 final ThemeService themeService = ThemeService();
@@ -23,6 +24,14 @@ void main() async {
     debugPrint('NotificationService initialized successfully.');
   } catch (e) {
     debugPrint('Error initializing NotificationService: $e');
+  }
+
+  // Request Storage Permissions for Background Sync
+  try {
+    await BackupService().requestStoragePermission();
+    await BackupService().silentBackup();
+  } catch (e) {
+    debugPrint('Error initializing Storage: $e');
   }
 
   runApp(const VowNoteApp());
