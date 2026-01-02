@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:vownote/models/booking.dart';
 import 'package:vownote/services/database_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -46,7 +47,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final totalDue = _allBookings.fold(0.0, (sum, b) => sum + b.pendingAmount);
     final totalBookings = _allBookings.length;
 
-    // Month-wise grouping
     final Map<String, int> monthCounts = {};
     for (var b in _allBookings) {
       if (b.eventDates.isEmpty) continue;
@@ -62,148 +62,267 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         return da.compareTo(db);
       });
 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Business Insights',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSummaryCard(
-            totalRevenue,
-            totalCollected,
-            totalDue,
-            totalBookings,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'MONTHLY WEDDING LOAD',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.black87
-                  : Colors.grey[500],
-              letterSpacing: 1.2,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverAppBar(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            surfaceTintColor: Colors.transparent,
+            pinned: true,
+            expandedHeight: 140,
+            flexibleSpace: FlexibleSpaceBar(
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+              title: Text(
+                'Business Insights',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black,
+                  fontSize: 24, // Sized for the collapsed state Title
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          ...sortedMonths.map(
-            (month) => _buildMonthTile(month, monthCounts[month]!),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildLuxeSummary(
+                  totalRevenue,
+                  totalCollected,
+                  totalDue,
+                  totalBookings,
+                  isDark,
+                ),
+                const SizedBox(height: 32),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'MONTHLY WEDDING LOAD',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white60 : Colors.black54,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ]),
+            ),
           ),
-          const SizedBox(height: 40),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final month = sortedMonths[index];
+                return _buildMonthTile(month, monthCounts[month]!, isDark)
+                    .animate()
+                    .fadeIn(delay: (index * 50).ms)
+                    .slideX(begin: 0.1, curve: Curves.easeOut);
+              }, childCount: sortedMonths.length),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 60)),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(double rev, double coll, double due, int count) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFD4AF37),
-            const Color(0xFFD4AF37).withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD4AF37).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                'TOTAL BUSINESS',
-                '₹${NumberFormat.compact().format(rev)}',
-                Colors.white,
+  Widget _buildLuxeSummary(
+    double rev,
+    double coll,
+    double due,
+    int count,
+    bool isDark,
+  ) {
+    return Column(
+      children: [
+        // Main Business Pill (Dynamic Island style)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFFD4AF37),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD4AF37).withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
-              _buildStatItem('TOTAL EVENTS', count.toString(), Colors.white),
             ],
           ),
-          const Divider(height: 32, color: Colors.white24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatItem(
+              Text(
+                'TOTAL VALUATION',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '₹${NumberFormat.decimalPattern().format(rev)}',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '$count Events',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack).fadeIn(),
+        const SizedBox(height: 16),
+        // Secondary Stats Pills
+        Row(
+          children: [
+            Expanded(
+              child: _buildSecondaryPill(
                 'COLLECTED',
                 '₹${NumberFormat.compact().format(coll)}',
-                Colors.white.withOpacity(0.9),
+                isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                Colors.green,
+                isDark,
               ),
-              _buildStatItem(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSecondaryPill(
                 'OUTSTANDING',
                 '₹${NumberFormat.compact().format(due)}',
-                Colors.red[100]!,
+                isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                isDark
+                    ? const Color(0xFFFF453A)
+                    : const Color(0xFFFF2D55), // Apple System Red
+                isDark,
+                isWarning: true,
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: color.withOpacity(0.7),
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+            ),
+          ],
+        ).animate().slideY(begin: 0.2).fadeIn(delay: 200.ms),
       ],
     );
   }
 
-  Widget _buildMonthTile(String month, int count) {
+  Widget _buildSecondaryPill(
+    String label,
+    String value,
+    Color bg,
+    Color accent,
+    bool isDark, {
+    bool isWarning = false,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
+        color: bg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.05)
+              : Colors.black.withOpacity(0.05),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isDark ? Colors.white60 : Colors.black54,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: isWarning
+                  ? accent
+                  : (isDark ? Colors.white : Colors.black),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthTile(String month, int count, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.05)
+              : Colors.black.withOpacity(0.05),
+        ),
       ),
       child: ListTile(
-        title: Text(month, style: const TextStyle(fontWeight: FontWeight.w600)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        title: Text(
+          month,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
         trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFD4AF37).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
+            color: const Color(0xFFD4AF37).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(24),
           ),
           child: Text(
             '$count Weddings',
             style: const TextStyle(
               color: Color(0xFFD4AF37),
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               fontSize: 12,
             ),
           ),

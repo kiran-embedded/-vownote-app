@@ -75,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'VowNote Professional v1.2',
+                        'VowNote Professional v1.3',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: CupertinoColors.systemGrey,
