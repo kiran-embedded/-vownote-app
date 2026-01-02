@@ -582,6 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                           icon: const Icon(
                                                             Icons.ios_share,
                                                             color: Colors.green,
+                                                            size: 18,
                                                           ),
                                                           onPressed: () =>
                                                               _showShareOptions(
@@ -589,30 +590,64 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 booking,
                                                               ),
                                                         ),
-                                                        const Icon(
+                                                        Icon(
                                                           Icons.chevron_right,
-                                                          color: Colors.grey,
                                                           size: 20,
+                                                          color:
+                                                              Theme.of(
+                                                                    context,
+                                                                  ).brightness ==
+                                                                  Brightness
+                                                                      .light
+                                                              ? Colors.black26
+                                                              : Colors.white24,
                                                         ),
                                                       ],
                                                     ),
                                             ),
                                             if (!isLast)
-                                              Divider(
-                                                height: 1,
-                                                indent: 16,
-                                                color: Theme.of(
-                                                  context,
-                                                ).dividerTheme.color,
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  left: 16,
+                                                  right: 16,
+                                                ),
+                                                child: Divider(
+                                                  height: 1,
+                                                  thickness: 0.5,
+                                                  color: Colors.grey
+                                                      .withOpacity(
+                                                        Theme.of(
+                                                                  context,
+                                                                ).brightness ==
+                                                                Brightness.light
+                                                            ? 0.1
+                                                            : 0.05,
+                                                      ),
+                                                ),
                                               ),
                                           ],
                                         ),
                                       ),
                                     ),
                                   )
+                                  .animate(
+                                    onPlay: (controller) =>
+                                        controller.repeat(reverse: true),
+                                    autoPlay: false,
+                                  )
+                                  .scale(
+                                    end: const Offset(0.98, 0.98),
+                                    duration: 100.ms,
+                                    curve: Curves.easeInOut,
+                                  )
                                   .animate()
-                                  .fadeIn(duration: 200.ms)
-                                  .slideX(begin: 0.05, curve: Curves.easeOut);
+                                  .fadeIn(delay: (i * 30).ms, duration: 400.ms)
+                                  .slideX(
+                                    begin: 0.05,
+                                    delay: (i * 30).ms,
+                                    duration: 400.ms,
+                                    curve: Curves.easeOutCubic,
+                                  );
                             }).toList(),
                           ),
                         ),

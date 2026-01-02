@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vownote/services/backup_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:vownote/main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -33,12 +34,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             ListView(
               children: [
-                _buildSectionTitle('Data Backup & Restore'),
-                _buildBackupSection(),
-                _buildSectionTitle('Global Persistence'),
-                _buildStorageStatusSection(),
-                _buildSectionTitle('App'),
-                _buildAppSection(),
+                _buildSectionTitle(
+                  'Data Backup & Restore',
+                ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.05),
+                _buildBackupSection()
+                    .animate()
+                    .fadeIn(delay: 50.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, curve: Curves.easeOutCubic),
+                _buildSectionTitle(
+                  'Global Persistence',
+                ).animate().fadeIn(delay: 100.ms).slideX(begin: 0.05),
+                _buildStorageStatusSection()
+                    .animate()
+                    .fadeIn(delay: 150.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, curve: Curves.easeOutCubic),
+                _buildSectionTitle(
+                  'App',
+                ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05),
+                _buildAppSection()
+                    .animate()
+                    .fadeIn(delay: 250.ms, duration: 400.ms)
+                    .slideY(begin: 0.1, curve: Curves.easeOutCubic),
                 const SizedBox(height: 60),
                 Center(
                   child: Column(
@@ -75,7 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'VowNote Professional v1.3',
+                        'VowNote Professional v1.4',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: CupertinoColors.systemGrey,

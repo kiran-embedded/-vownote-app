@@ -5,6 +5,7 @@ import 'package:vownote/services/database_service.dart';
 import 'package:vownote/services/notification_service.dart';
 import 'package:vownote/utils/haptics.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BookingFormScreen extends StatefulWidget {
   final Booking? booking;
@@ -309,6 +310,10 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                       fontSize: 17,
                     ),
                   ),
+                ).animate().scale(
+                  begin: const Offset(0.9, 0.9),
+                  duration: 200.ms,
+                  curve: Curves.elasticOut,
                 ),
         ],
       ),
@@ -317,17 +322,27 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSmartFillSection(),
+            _buildSmartFillSection()
+                .animate()
+                .fadeIn(duration: 400.ms)
+                .slideY(begin: 0.1, curve: Curves.easeOutCubic),
             const SizedBox(height: 24),
             _buildSection([
-              _buildTextField(
-                _brideNameController,
-                'Bride Name',
-                Icons.person_outline,
-              ),
-              const Divider(height: 1, indent: 50),
-              _buildTextField(_groomNameController, 'Groom Name', Icons.person),
-            ]),
+                  _buildTextField(
+                    _brideNameController,
+                    'Bride Name',
+                    Icons.person_outline,
+                  ),
+                  const Divider(height: 1, indent: 50),
+                  _buildTextField(
+                    _groomNameController,
+                    'Groom Name',
+                    Icons.person,
+                  ),
+                ])
+                .animate()
+                .fadeIn(delay: 50.ms, duration: 400.ms)
+                .slideY(begin: 0.1, curve: Curves.easeOutCubic),
 
             const SizedBox(height: 24),
             const Text(
@@ -337,51 +352,59 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                 color: Colors.grey,
                 fontWeight: FontWeight.w600,
               ),
-            ),
+            ).animate().fadeIn(delay: 100.ms).slideX(begin: 0.05),
             const SizedBox(height: 8),
             Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                children: [
-                  ..._selectedDates.map(
-                    (date) => Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(
-                            Icons.calendar_today,
-                            color: Colors.amber,
-                          ),
-                          title: Text(DateFormat('MMMM d, yyyy').format(date)),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.grey),
-                            onPressed: () {
-                              setState(() {
-                                _selectedDates.remove(date);
-                              });
-                            },
-                          ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      ..._selectedDates.map(
+                        (date) => Column(
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.calendar_today,
+                                color: Colors.amber,
+                              ),
+                              title: Text(
+                                DateFormat('MMMM d, yyyy').format(date),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDates.remove(date);
+                                  });
+                                },
+                              ),
+                            ),
+                            if (date != _selectedDates.last)
+                              const Divider(height: 1, indent: 16),
+                          ],
                         ),
-                        if (date != _selectedDates.last)
-                          const Divider(height: 1, indent: 16),
-                      ],
-                    ),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.add_circle_outline,
+                          color: Color(0xFFD4AF37),
+                        ),
+                        onTap: () {
+                          Haptics.light();
+                          _selectDates(context);
+                        },
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.add_circle_outline,
-                      color: Color(0xFFD4AF37),
-                    ),
-                    onTap: () {
-                      Haptics.light();
-                      _selectDates(context);
-                    },
-                  ),
-                ],
-              ),
-            ),
+                )
+                .animate()
+                .fadeIn(delay: 150.ms, duration: 400.ms)
+                .slideY(begin: 0.1, curve: Curves.easeOutCubic),
 
             const SizedBox(height: 24),
             Text(
@@ -393,46 +416,49 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                     : Colors.grey,
                 fontWeight: FontWeight.w600,
               ),
-            ),
+            ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05),
             const SizedBox(height: 8),
             _buildSection([
-              _buildTextField(
-                _totalAmountController,
-                'Total Amount',
-                Icons.currency_rupee,
-                keyboardType: TextInputType.number,
-              ),
-              const Divider(height: 1, indent: 50),
-              _buildTextField(
-                _advanceAmountController,
-                'Advance (Initial)',
-                Icons.payments_outlined,
-                keyboardType: TextInputType.number,
-              ),
-              const Divider(height: 1, indent: 50),
-              _buildTextField(
-                _receivedAmountController,
-                'Total Received',
-                Icons.account_balance_wallet_outlined,
-                keyboardType: TextInputType.number,
-              ),
-              const Divider(height: 1, indent: 50),
-              ListTile(
-                leading: const Icon(
-                  Icons.pending_actions,
-                  color: Colors.redAccent,
-                ),
-                title: const Text('Pending Amount'),
-                trailing: Text(
-                  '₹${_pendingAmount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
+                  _buildTextField(
+                    _totalAmountController,
+                    'Total Amount',
+                    Icons.currency_rupee,
+                    keyboardType: TextInputType.number,
                   ),
-                ),
-              ),
-            ]),
+                  const Divider(height: 1, indent: 50),
+                  _buildTextField(
+                    _advanceAmountController,
+                    'Advance (Initial)',
+                    Icons.payments_outlined,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const Divider(height: 1, indent: 50),
+                  _buildTextField(
+                    _receivedAmountController,
+                    'Total Received',
+                    Icons.account_balance_wallet_outlined,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const Divider(height: 1, indent: 50),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.pending_actions,
+                      color: Colors.redAccent,
+                    ),
+                    title: const Text('Pending Amount'),
+                    trailing: Text(
+                      '₹${_pendingAmount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ])
+                .animate()
+                .fadeIn(delay: 250.ms, duration: 400.ms)
+                .slideY(begin: 0.1, curve: Curves.easeOutCubic),
 
             const SizedBox(height: 24),
             Text(
@@ -444,23 +470,26 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                     : Colors.grey,
                 fontWeight: FontWeight.w600,
               ),
-            ),
+            ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.05),
             const SizedBox(height: 8),
             _buildSection([
-              _buildTextField(
-                _phoneController,
-                'Phone Number',
-                Icons.phone,
-                keyboardType: TextInputType.phone,
-              ),
-              const Divider(height: 1, indent: 50),
-              _buildTextField(
-                _addressController,
-                'Address',
-                Icons.location_on_outlined,
-                maxLines: 3,
-              ),
-            ]),
+                  _buildTextField(
+                    _phoneController,
+                    'Phone Number',
+                    Icons.phone,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const Divider(height: 1, indent: 50),
+                  _buildTextField(
+                    _addressController,
+                    'Address',
+                    Icons.location_on_outlined,
+                    maxLines: 3,
+                  ),
+                ])
+                .animate()
+                .fadeIn(delay: 350.ms, duration: 400.ms)
+                .slideY(begin: 0.1, curve: Curves.easeOutCubic),
 
             const SizedBox(height: 40),
           ],
