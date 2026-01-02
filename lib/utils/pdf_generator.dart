@@ -279,14 +279,14 @@ class PdfGenerator {
                 ),
                 pw.UrlLink(
                   child: pw.Text(
-                    'https://github.com/kiran-embedded',
+                    'https://github.com/kiran-embedded/-vownote-app',
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.blue,
                       decoration: pw.TextDecoration.underline,
                     ),
                   ),
-                  destination: 'https://github.com/kiran-embedded',
+                  destination: 'https://github.com/kiran-embedded/-vownote-app',
                 ),
               ],
             ),
