@@ -29,6 +29,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
 
   List<DateTime> _selectedDates = [];
   double _pendingAmount = 0;
+  bool _isSuccess = false;
   bool _isSaving = false;
   List<Booking> _allBookings = [];
   List<Booking> _filteredLookupResults = [];
@@ -246,16 +247,13 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
           debugPrint('Silent Notification Error: $e');
         });
 
-        Haptics.success();
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Booking saved successfully'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 1),
-            ),
-          );
+          setState(() {
+            _isSuccess = true;
+            _isSaving = false;
+          });
+          Haptics.success();
+          await Future.delayed(const Duration(milliseconds: 600));
           Navigator.pop(context);
         }
       } catch (e) {
@@ -283,13 +281,40 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Dynamic
       appBar: AppBar(
-        title: Text(
-          widget.booking == null ? 'New Booking' : 'Edit Booking',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
+        title:
+            Text(
+                  _isSuccess
+                      ? 'Saved!'
+                      : (widget.booking == null
+                            ? 'New Booking'
+                            : 'Edit Booking'),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: _isSuccess ? Colors.green : null,
+                  ),
+                )
+                .animate(target: _isSuccess ? 1 : 0)
+                .tint(color: Colors.green)
+                .scale(
+                  end: const Offset(1.1, 1.1),
+                  duration: 400.ms,
+                  curve: Curves.easeOutBack,
+                ),
         backgroundColor: Colors.transparent,
         actions: [
-          _isSaving
+          _isSuccess
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child:
+                      const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 28,
+                          )
+                          .animate()
+                          .scale(duration: 400.ms, curve: Curves.easeOutBack)
+                          .fadeIn(),
+                )
+              : _isSaving
               ? const Padding(
                   padding: EdgeInsets.only(right: 16.0),
                   child: Center(
