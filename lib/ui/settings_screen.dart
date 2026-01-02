@@ -92,19 +92,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'VowNote Professional v1.6',
+                        'VowNote Professional v1.8',
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: CupertinoColors.systemGrey,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '(c) 2026 kiran-embedded',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                          color: CupertinoColors.systemGrey.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: 12),

@@ -92,25 +92,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildLuxeSummary(
-                  totalRevenue,
-                  totalCollected,
-                  totalDue,
-                  totalBookings,
-                  isDark,
-                ),
+                      totalRevenue,
+                      totalCollected,
+                      totalDue,
+                      totalBookings,
+                      isDark,
+                    )
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                 const SizedBox(height: 32),
                 Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    'MONTHLY WEDDING LOAD',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white60 : Colors.black54,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Monthly Performance',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 500.ms)
+                    .slideY(begin: 0.1, curve: Curves.easeOutQuad),
                 const SizedBox(height: 16),
               ]),
             ),

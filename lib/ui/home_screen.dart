@@ -14,7 +14,6 @@ import 'package:vownote/utils/booking_card_image.dart';
 import 'package:vownote/ui/settings_screen.dart';
 import 'package:vownote/ui/analytics_screen.dart';
 import 'package:vownote/utils/haptics.dart';
-import 'package:vownote/utils/branding_utils.dart';
 import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
@@ -33,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isSelectionMode = false;
   final Set<String> _selectedIds = {};
+  final Set<String> _deletingIds = {};
 
   final ScreenshotController _screenshotController = ScreenshotController();
   Booking? _bookingToCapture;
@@ -161,12 +161,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     if (confirm == true) {
+      setState(() {
+        _deletingIds.addAll(_selectedIds);
+      });
+
+      // Wait for "Magic Sprinkle" animation to complete
+      await Future.delayed(const Duration(milliseconds: 600));
+
       for (var id in _selectedIds) {
         await DatabaseService().deleteBooking(id);
       }
       Haptics.success();
       setState(() {
         _isSelectionMode = false;
+        _deletingIds.clear();
         _selectedIds.clear();
       });
       _loadBookings();
@@ -314,39 +322,52 @@ class _HomeScreenState extends State<HomeScreen> {
                           final isSelected = _selectedMonthFilter == m;
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: ChoiceChip(
-                              label: Text(m),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  Haptics.light();
-                                  setState(() {
-                                    _selectedMonthFilter = m;
-                                    _applyFilters();
-                                  });
-                                }
-                              },
-                              selectedColor: const Color(0xFFD4AF37),
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : (Theme.of(context).brightness ==
-                                              Brightness.light
-                                          ? Colors.black87
-                                          : Colors.grey),
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                              ),
-                              backgroundColor: Theme.of(
-                                context,
-                              ).cardTheme.color,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              showCheckmark: false,
-                              side: BorderSide.none,
-                            ),
+                            child:
+                                ChoiceChip(
+                                      label: Text(m),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        if (selected) {
+                                          Haptics.light();
+                                          setState(() {
+                                            _selectedMonthFilter = m;
+                                            _applyFilters();
+                                          });
+                                        }
+                                      },
+                                      selectedColor: const Color(0xFFD4AF37),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : (Theme.of(context).brightness ==
+                                                      Brightness.light
+                                                  ? Colors.black87
+                                                  : Colors.grey),
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                      ),
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).cardTheme.color,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      showCheckmark: false,
+                                      side: BorderSide.none,
+                                    )
+                                    .animate(
+                                      target: isSelected ? 1 : 0,
+                                      onPlay: (c) => isSelected
+                                          ? c.repeat(reverse: true)
+                                          : null,
+                                    )
+                                    .scale(
+                                      begin: const Offset(1.0, 1.0),
+                                      end: const Offset(1.08, 1.08),
+                                      duration: 1500.ms,
+                                      curve: Curves.easeInOutSine,
+                                    ),
                           );
                         },
                       ),
@@ -632,10 +653,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   )
                                   .animate(
-                                    onPlay: (controller) =>
-                                        controller.repeat(reverse: true),
-                                    autoPlay: false,
+                                    target: _deletingIds.contains(booking.id)
+                                        ? 1
+                                        : 0,
                                   )
+                                  .shake(duration: 400.ms, hz: 6)
+                                  .scale(
+                                    end: const Offset(0.0, 0.0),
+                                    duration: 500.ms,
+                                    curve: Curves.easeInBack,
+                                  )
+                                  .fadeOut(duration: 500.ms)
+                                  .blurXY(begin: 0, end: 10, duration: 600.ms)
                                   .scale(
                                     end: const Offset(0.98, 0.98),
                                     duration: 100.ms,
@@ -656,13 +685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }, childCount: sortedKeys.length),
                 ),
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Center(child: GitHubWatermark(compact: true)),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
           if (_bookingToCapture != null)
