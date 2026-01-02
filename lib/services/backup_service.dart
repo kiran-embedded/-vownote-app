@@ -27,8 +27,7 @@ class BackupService {
     try {
       final db = DatabaseService();
       final bookings = await db.getBookings();
-      if (bookings.isEmpty) return;
-
+      // Even if empty, we save [] to reflect the current state (e.g. after deletion)
       final data = jsonEncode(bookings.map((e) => e.toMap()).toList());
 
       if (Platform.isAndroid) {
@@ -39,7 +38,7 @@ class BackupService {
           }
           final file = File('${directory.path}/vownote_master_backup.json');
           await file.writeAsString(data);
-          debugPrint('Silent backup saved to: ${file.path}');
+          debugPrint('Silent auto-sync saved to: ${file.path}');
         }
       }
     } catch (e) {
@@ -57,10 +56,9 @@ class BackupService {
     }
 
     final data = jsonEncode(bookings.map((e) => e.toMap()).toList());
-    final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final fileName = 'VowNote_Backup_$dateStr.json';
+    const fileName = 'vownote_master_backup.json';
 
-    // 1. Try to save to "Documents/VowNote" (Persistent)
+    // 1. Try to save to "Documents/VowNote" (Persistent Master File)
     try {
       if (Platform.isAndroid) {
         if (await requestStoragePermission()) {
@@ -77,9 +75,11 @@ class BackupService {
       debugPrint('Manual export to storage failed, falling back: $e');
     }
 
-    // 2. Fallback to Temporary & Share
+    // 2. Fallback to Temporary & Share (using timestamp for uniqueness in share sheet)
+    final dateStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final tempFileName = 'VowNote_Export_$dateStr.json';
     final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/$fileName');
+    final file = File('${directory.path}/$tempFileName');
     await file.writeAsString(data);
     await Share.shareXFiles([XFile(file.path)], text: 'VowNote Backup');
     return file.path;
