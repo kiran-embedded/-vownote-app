@@ -14,6 +14,7 @@ import 'package:vownote/utils/booking_card_image.dart';
 import 'package:vownote/ui/settings_screen.dart';
 import 'package:vownote/ui/analytics_screen.dart';
 import 'package:vownote/utils/haptics.dart';
+import 'package:vownote/utils/branding_utils.dart';
 import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
@@ -655,7 +656,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }, childCount: sortedKeys.length),
                 ),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24.0),
+                  child: Center(child: GitHubWatermark(compact: true)),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
           ),
           if (_bookingToCapture != null)

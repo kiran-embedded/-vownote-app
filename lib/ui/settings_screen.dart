@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:vownote/services/backup_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:vownote/utils/branding_utils.dart';
 import 'package:vownote/main.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -106,6 +107,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: CupertinoColors.systemGrey.withOpacity(0.6),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      const GitHubWatermark(compact: true),
                     ],
                   ),
                 ),
