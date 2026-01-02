@@ -52,7 +52,7 @@
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/kiran-embedded/vownote-professional.git
+    git clone https://github.com/kiran-embedded/-vownote-app.git
     ```
 2.  **Install Dependencies**:
     ```bash
