@@ -5,6 +5,126 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   static final TextTheme _textTheme = GoogleFonts.interTextTheme();
 
+  // Default gold color for fallback
+  static const Color defaultAccentColor = Color(0xFFD4AF37);
+
+  /// Create dynamic theme from system color scheme (Material You)
+  static ThemeData createDynamicLightTheme(ColorScheme? dynamicColorScheme) {
+    final colorScheme =
+        dynamicColorScheme ??
+        ColorScheme.fromSeed(
+          seedColor: defaultAccentColor,
+          brightness: Brightness.light,
+        );
+
+    return _buildTheme(
+      colorScheme: colorScheme,
+      brightness: Brightness.light,
+      scaffoldBackground: const Color(0xFFF2F2F7),
+      cardColor: Colors.white,
+    );
+  }
+
+  /// Create dynamic dark theme from system color scheme (Material You)
+  static ThemeData createDynamicDarkTheme(ColorScheme? dynamicColorScheme) {
+    final colorScheme =
+        dynamicColorScheme ??
+        ColorScheme.fromSeed(
+          seedColor: defaultAccentColor,
+          brightness: Brightness.dark,
+        );
+
+    return _buildTheme(
+      colorScheme: colorScheme,
+      brightness: Brightness.dark,
+      scaffoldBackground: Colors.black,
+      cardColor: const Color(0xFF1C1C1E),
+    );
+  }
+
+  /// Build theme from color scheme
+  static ThemeData _buildTheme({
+    required ColorScheme colorScheme,
+    required Brightness brightness,
+    required Color scaffoldBackground,
+    required Color cardColor,
+  }) {
+    final isDark = brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor: scaffoldBackground,
+      primaryColor: colorScheme.primary,
+      colorScheme: colorScheme,
+      appBarTheme: AppBarTheme(
+        backgroundColor: isDark ? Colors.black : Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        systemOverlayStyle: isDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        titleTextStyle: GoogleFonts.inter(
+          color: textColor,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+        iconTheme: IconThemeData(color: textColor),
+      ),
+      cardTheme: CardThemeData(
+        color: cardColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: (isDark ? Colors.white : Colors.grey).withOpacity(0.1),
+            width: isDark ? 0.5 : 1,
+          ),
+        ),
+      ),
+      textTheme: _textTheme
+          .copyWith(
+            bodyLarge: GoogleFonts.inter(
+              color: textColor,
+              fontWeight: FontWeight.w400,
+            ),
+            bodyMedium: GoogleFonts.inter(
+              color: textColor.withOpacity(0.9),
+              fontWeight: FontWeight.w400,
+            ),
+            displayLarge: GoogleFonts.inter(
+              color: textColor,
+              fontWeight: FontWeight.w700,
+            ),
+            titleLarge: GoogleFonts.inter(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+            ),
+          )
+          .apply(bodyColor: textColor, displayColor: textColor),
+      iconTheme: IconThemeData(color: textColor),
+      dividerTheme: DividerThemeData(color: textColor.withOpacity(0.1)),
+      inputDecorationTheme: isDark
+          ? InputDecorationTheme(
+              filled: true,
+              fillColor: const Color(0xFF1C1C1E),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+            )
+          : null,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
+    );
+  }
+
   // iOS 18 Light Theme
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
@@ -101,10 +221,10 @@ class AppTheme {
         .copyWith(
           bodyLarge: GoogleFonts.inter(
             color: Colors.white,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
           ),
           bodyMedium: GoogleFonts.inter(
-            color: Colors.white70,
+            color: Colors.white.withOpacity(0.9),
             fontWeight: FontWeight.w400,
           ),
           displayLarge: GoogleFonts.inter(

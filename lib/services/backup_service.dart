@@ -33,7 +33,7 @@ class BackupService {
     return true;
   }
 
-  // Silent Backup: Saves to /Documents/VowNote without UI
+  // Silent Backup: Saves to App Documents or External if allowed
   Future<void> silentBackup() async {
     try {
       final db = DatabaseService();
@@ -41,16 +41,26 @@ class BackupService {
       // Use compute to move encoding off the main thread
       final data = await compute(_encodeBookings, bookings);
 
+      Directory? directory;
       if (Platform.isAndroid) {
+        // Try to get external storage directory first (App Specific)
+        directory = await getExternalStorageDirectory();
+        // Or if MANAGE_EXTERNAL_STORAGE is truly granted, use specific folder
         if (await Permission.manageExternalStorage.isGranted) {
-          final directory = Directory('/storage/emulated/0/Documents/VowNote');
-          if (!await directory.exists()) {
-            await directory.create(recursive: true);
+          final publicDir = Directory('/storage/emulated/0/Documents/VowNote');
+          if (!await publicDir.exists()) {
+            await publicDir.create(recursive: true);
           }
-          final file = File('${directory.path}/vownote_master_backup.json');
-          await file.writeAsString(data);
-          debugPrint('Silent auto-sync saved to: ${file.path}');
+          directory = publicDir;
         }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      if (directory != null) {
+        final file = File('${directory.path}/vownote_master_backup.json');
+        await file.writeAsString(data);
+        debugPrint('Silent auto-sync saved to: ${file.path}');
       }
     } catch (e) {
       debugPrint('Silent backup failed: $e');

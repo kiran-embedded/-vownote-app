@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:vownote/utils/haptics.dart';
+import 'package:flutter/cupertino.dart';
 
 class BrandingUtils {
   static const String githubUrl = 'https://github.com/kiran-embedded';
@@ -53,7 +54,7 @@ class GitHubWatermark extends StatelessWidget {
                   Icon(
                     Icons.code_rounded,
                     size: compact ? 14 : 16,
-                    color: const Color(0xFFD4AF37),
+                    color: const Color(0xFFF5F5F5), // Platinum white
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -69,7 +70,12 @@ class GitHubWatermark extends StatelessWidget {
             ),
           ),
         )
-        .animate()
+        .animate(onPlay: (controller) => controller.repeat())
+        .shimmer(
+          duration: 2500.ms,
+          color: const Color(0xFFF5F5F5), // Platinum white shimmer
+          angle: 45,
+        )
         .fadeIn(duration: 600.ms)
         .slideY(begin: 0.2, curve: Curves.easeOutCubic)
         .scale(end: const Offset(1.0, 1.0), duration: 200.ms);

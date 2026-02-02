@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:vownote/models/booking.dart';
 import 'package:vownote/services/database_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:vownote/utils/pdf_generator.dart';
+import 'package:vownote/services/localization_service.dart';
+import 'package:vownote/utils/haptics.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -15,6 +19,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   List<Booking> _allBookings = [];
   bool _isLoading = true;
+  bool _isGeneratingPdf = false;
 
   double _totalRevenue = 0;
   double _totalCollected = 0;
@@ -32,7 +37,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Future<void> _loadData() async {
     final bookings = await DatabaseService().getBookings();
 
-    // Perform calculations in one pass to save CPU/RAM
     double revenue = 0;
     double collected = 0;
     double due = 0;
@@ -69,6 +73,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     });
   }
 
+  Future<void> _generateGlobalPdf() async {
+    Haptics.medium();
+    setState(() => _isGeneratingPdf = true);
+
+    // Simulate premium processing feel
+    await Future.delayed(const Duration(seconds: 1));
+
+    try {
+      await PdfGenerator.generateGlobalReport(_allBookings);
+      Haptics.success();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -79,80 +104,148 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            surfaceTintColor: Colors.transparent,
-            pinned: true,
-            expandedHeight: 140,
-            flexibleSpace: FlexibleSpaceBar(
-              centerTitle: false,
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-              title: Text(
-                'Business Insights',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                  fontSize: 24, // Sized for the collapsed state Title
+      body: Stack(
+        children: [
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                surfaceTintColor: Colors.transparent,
+                pinned: true,
+                expandedHeight: 140,
+                flexibleSpace: FlexibleSpaceBar(
+                  centerTitle: false,
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                  title: Text(
+                    'Business Insights',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                      fontSize: 24,
+                    ),
+                  ),
                 ),
+                actions: [
+                  IconButton(
+                    onPressed: _generateGlobalPdf,
+                    icon: const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      color: Color(0xFFD4AF37),
+                    ),
+                    tooltip: tr('full_report'),
+                  ),
+                ],
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _buildLuxeSummary(
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _buildSummary(
                       _totalRevenue,
                       _totalCollected,
                       _totalDue,
                       _totalBookingsCount,
                       isDark,
-                    )
-                    .animate()
-                    .fadeIn(duration: 500.ms)
-                    .slideY(begin: 0.1, curve: Curves.easeOutQuad),
-                const SizedBox(height: 32),
-                Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Monthly Performance',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white70 : Colors.black87,
-                        ),
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 200.ms, duration: 500.ms)
-                    .slideY(begin: 0.1, curve: Curves.easeOutQuad),
-                const SizedBox(height: 16),
-              ]),
-            ),
+                    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1),
+                    const SizedBox(height: 32),
+                    Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Monthly Performance',
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black87,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: _generateGlobalPdf,
+                                icon: const Icon(
+                                  Icons.print_outlined,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  tr('full_report'),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFFD4AF37),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(delay: 200.ms, duration: 500.ms)
+                        .slideY(begin: 0.1),
+                    const SizedBox(height: 16),
+                  ]),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final month = _sortedMonths[index];
+                    final count = _monthCounts[month] ?? 0;
+                    return _buildMonthTile(month, count, isDark)
+                        .animate()
+                        .fadeIn(delay: (index * 50).ms)
+                        .slideX(begin: 0.1);
+                  }, childCount: _sortedMonths.length),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 60)),
+            ],
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final month = _sortedMonths[index];
-                final count = _monthCounts[month] ?? 0;
-                return _buildMonthTile(month, count, isDark)
-                    .animate()
-                    .fadeIn(delay: (index * 50).ms)
-                    .slideX(begin: 0.1, curve: Curves.easeOut);
-              }, childCount: _sortedMonths.length),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 60)),
+          if (_isGeneratingPdf) _buildPdfLoadingOverlay(),
         ],
       ),
     );
   }
 
-  Widget _buildLuxeSummary(
+  Widget _buildPdfLoadingOverlay() {
+    return Container(
+      color: Colors.black.withOpacity(0.7),
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CupertinoActivityIndicator(
+                radius: 20,
+                color: Color(0xFFD4AF37),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                tr('generating_pdf'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+        ),
+      ),
+    ).animate().fadeIn();
+  }
+
+  Widget _buildSummary(
     double rev,
     double coll,
     double due,
@@ -161,7 +254,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   ) {
     return Column(
       children: [
-        // Main Business Pill (Dynamic Island style)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(24),
@@ -224,7 +316,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack).fadeIn(),
         const SizedBox(height: 16),
-        // Secondary Stats Pills
         Row(
           children: [
             Expanded(
@@ -242,9 +333,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 'OUTSTANDING',
                 '₹${NumberFormat.compact().format(due)}',
                 isDark ? const Color(0xFF1C1C1E) : Colors.white,
-                isDark
-                    ? const Color(0xFFFF453A)
-                    : const Color(0xFFFF2D55), // Apple System Red
+                isDark ? const Color(0xFFFF453A) : const Color(0xFFFF2D55),
                 isDark,
                 isWarning: true,
               ),

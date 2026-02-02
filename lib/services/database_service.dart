@@ -22,20 +22,25 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 3, // Bump Version to 3
+      version: 5, // Bump to 5
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE bookings(
             id TEXT PRIMARY KEY,
+            customerName TEXT,
             brideName TEXT,
             groomName TEXT,
             eventDates TEXT,
             totalAmount REAL,
-            advanceAmount REAL,
+            totalAdvance REAL,
+            advanceReceived REAL,
             receivedAmount REAL,
             address TEXT,
             phoneNumber TEXT,
-            notes TEXT, -- New Column
+            alternatePhone TEXT,
+            notes TEXT,
+            bookingCategory TEXT,
+            diaryCode TEXT,
             createdAt TEXT,
             updatedAt TEXT
           )
@@ -49,6 +54,32 @@ class DatabaseService {
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE bookings ADD COLUMN notes TEXT');
+        }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE bookings ADD COLUMN customerName TEXT');
+          await db.execute('ALTER TABLE bookings ADD COLUMN totalAdvance REAL');
+          await db.execute(
+            'ALTER TABLE bookings ADD COLUMN advanceReceived REAL',
+          );
+          await db.execute(
+            'ALTER TABLE bookings ADD COLUMN alternatePhone TEXT',
+          );
+          await db.execute(
+            'UPDATE bookings SET customerName = brideName WHERE customerName IS NULL',
+          );
+        }
+        if (oldVersion < 5) {
+          // Migration to Version 5
+          await db.execute(
+            'ALTER TABLE bookings ADD COLUMN bookingCategory TEXT',
+          );
+          await db.execute('ALTER TABLE bookings ADD COLUMN diaryCode TEXT');
+          await db.execute(
+            "UPDATE bookings SET bookingCategory = 'None' WHERE bookingCategory IS NULL",
+          );
+          await db.execute(
+            "UPDATE bookings SET diaryCode = '' WHERE diaryCode IS NULL",
+          );
         }
       },
     );
@@ -92,16 +123,9 @@ class DatabaseService {
     BackupService().silentBackup();
   }
 
-  // For monthly filtering
   Future<List<Booking>> getBookingsForMonth(int month, int year) async {
-    // This is a bit complex with standard SQL because dates are stored as JSON list in 'eventDates'.
-    // A simpler approach for the "View" is to fetch all and filter in Dart,
-    // OR we could store a 'primaryDate' column for easier querying.
-    // Given the scale of a wedding planner (dozens, maybe hundreds, not millions), fetching all and filtering in memory is fine and robust.
-
     final allBookings = await getBookings();
     return allBookings.where((booking) {
-      // Check if ANY of the dates fall in the target month/year
       return booking.eventDates.any(
         (date) => date.month == month && date.year == year,
       );
