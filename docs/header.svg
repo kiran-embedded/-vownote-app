@@ -1,0 +1,37 @@
+<svg width="800" height="200" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gold Shimmer Gradient -->
+    <linearGradient id="gold-shimmer" x1="0%" y1="0%" x2="200%" y2="0%">
+      <stop offset="0%" stop-color="#D4AF37" />
+      <stop offset="40%" stop-color="#FFD700" />
+      <stop offset="50%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#D4AF37" />
+      
+      <!-- Animation -->
+      <animate attributeName="x1" from="-100%" to="100%" dur="3s" repeatCount="indefinite" />
+      <animate attributeName="x2" from="100%" to="300%" dur="3s" repeatCount="indefinite" />
+    </linearGradient>
+    
+    <!-- Shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background (Transparent) -->
+  
+  <!-- Logo/Icon Placeholder (Simplified Hexagon) -->
+  <path d="M 50 100 L 75 50 L 125 50 L 150 100 L 125 150 L 75 150 Z" 
+        fill="url(#gold-shimmer)" stroke="#B8860B" stroke-width="2" filter="url(#shadow)" />
+  
+  <!-- Title Text -->
+  <text x="180" y="110" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="80" fill="url(#gold-shimmer)" filter="url(#shadow)">
+    BizLedger
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="185" y="150" font-family="Arial, Helvetica, sans-serif" font-weight="normal" font-size="24" fill="#AAAAAA">
+    The Ultimate Business &amp; Event Management Solution
+  </text>
+</svg>
