@@ -1,7 +1,16 @@
-# BizLedger (v2.3.0)
-> **The Ultimate Business & Event Management Solution**
-
-BizLedger is a high-performance, security-focused Flutter application designed for professionals. It combines robust financial tracking with a stunning Material You interface, seamless biometric security, and dynamic business logic adaptability.
+<div align="center">
+  <img src="assets/logo.png" alt="BizLedger Logo" width="120" height="120">
+  <h1>BizLedger</h1>
+  <p>
+    <b>The Ultimate Business & Event Management Solution</b>
+  </p>
+  <p>
+    <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter"></a>
+    <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Version-2.3.0-blue?style=for-the-badge" alt="Version"></a>
+  </p>
+  <br>
+</div>
 
 ---
 
