@@ -112,15 +112,15 @@ graph TD
     A --> D[ui/]
     A --> E[utils/]
     
-    B --> B1[booking.dart <br/><i>(JSON Serialization)</i>]
-    B --> B2[business_type.dart <br/><i>(Config Factory)</i>]
+    B --> B1["booking.dart (JSON Serialization)"]
+    B --> B2["business_type.dart (Config Factory)"]
     
-    C --> C1[database_service.dart <br/><i>(SQLite WAL Engine)</i>]
-    C --> C2[biometric_service.dart <br/><i>(Hardware Auth)</i>]
-    C --> C3[theme_service.dart <br/><i>(Material 3 Engine)</i>]
+    C --> C1["database_service.dart (SQLite WAL Engine)"]
+    C --> C2["biometric_service.dart (Hardware Auth)"]
+    C --> C3["theme_service.dart (Material 3 Engine)"]
     
     D --> D1[home_screen.dart]
-    D --> D2[lock_screen.dart <br/><i>(Secure Enclave UI)</i>]
+    D --> D2["lock_screen.dart (Secure Enclave UI)"]
     D --> D3[widgets/]
     
     style A fill:#f9f,stroke:#333,stroke-width:2px
