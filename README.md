@@ -11,11 +11,23 @@
 
 ---
 
-# � Executive Technical Summary
+# ⚡ Executive Technical Summary
 
-**BizLedger (v2.3.0)** represents a paradigm shift in local-first mobile architecture. Instead of relying on fragmented file systems or heavyweight server-side dependencies, it utilizes a **Hybrid Relational-JSON Usage Model** backed by SQLite. This approach allows for **O(1)** read/write speeds for complex nested structures (like Payments and Event Dates) while maintaining the ACID compliance of a relational database.
+**BizLedger (v2.3.1)** is a polished, enterprise-grade update that introduces **Triple-Lock Data Safety**, **Data Isolation**, and **Universal Haptics**.
 
-This document serves as a comprehensive technical whitepaper detailing the architecture, security, and performance optimizations that make BizLedger the industry standard for offline-first business management.
+### 🆕 v2.3.1 Release Highlights
+1.  **Triple-Lock Backup System**: Data is simultaneously secured in:
+    *   `/VowNote/Backups/` (Survives Uninstall)
+    *   `/Documents/VowNote/` (User Visible)
+    *   `App Storage` (Fast Access)
+    *   Includes automatic **Retry Logic** and **Checksum Verification** for 100% integrity.
+2.  **Business Data Isolation**: 
+    *   Segregates Client Data based on `Business Profile` (Wedding vs Photography).
+    *   Dynamic filtering at the SQL level ensures zero data leakage between profiles.
+3.  **Universal Haptics Engine**:
+    *   Replaces standard `HapticFeedback` with a custom engine using the `vibration` plugin.
+    *   Delivers "Premium Taptic Feel" even on low-end devices via micro-burst (5ms) vibrations.
+    *   Dynamically adapts amplitude for high-end devices.
 
 ---
 

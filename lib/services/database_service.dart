@@ -22,7 +22,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5, // Bump to 5
+      version: 6, // Bumped to 6 for new business fields
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE bookings(
@@ -42,7 +42,12 @@ class DatabaseService {
             bookingCategory TEXT,
             diaryCode TEXT,
             createdAt TEXT,
-            updatedAt TEXT
+            updatedAt TEXT,
+            businessType TEXT,
+            payments TEXT,
+            taxRate REAL,
+            discountAmount REAL,
+            discountPercentage REAL
           )
         ''');
       },
@@ -81,6 +86,34 @@ class DatabaseService {
             "UPDATE bookings SET diaryCode = '' WHERE diaryCode IS NULL",
           );
         }
+        if (oldVersion < 6) {
+          // Migration to Version 6: Add business-related fields
+          await db.execute('ALTER TABLE bookings ADD COLUMN businessType TEXT');
+          await db.execute('ALTER TABLE bookings ADD COLUMN payments TEXT');
+          await db.execute('ALTER TABLE bookings ADD COLUMN taxRate REAL');
+          await db.execute(
+            'ALTER TABLE bookings ADD COLUMN discountAmount REAL',
+          );
+          await db.execute(
+            'ALTER TABLE bookings ADD COLUMN discountPercentage REAL',
+          );
+          // Set defaults for existing records
+          await db.execute(
+            "UPDATE bookings SET businessType = 'wedding' WHERE businessType IS NULL",
+          );
+          await db.execute(
+            "UPDATE bookings SET payments = '[]' WHERE payments IS NULL",
+          );
+          await db.execute(
+            'UPDATE bookings SET taxRate = 0 WHERE taxRate IS NULL',
+          );
+          await db.execute(
+            'UPDATE bookings SET discountAmount = 0 WHERE discountAmount IS NULL',
+          );
+          await db.execute(
+            'UPDATE bookings SET discountPercentage = 0 WHERE discountPercentage IS NULL',
+          );
+        }
       },
     );
   }
@@ -106,11 +139,13 @@ class DatabaseService {
     BackupService().silentBackup();
   }
 
-  Future<List<Booking>> getBookings() async {
+  Future<List<Booking>> getBookings({String? businessType}) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'bookings',
       orderBy: 'createdAt DESC',
+      where: businessType != null ? 'businessType = ?' : null,
+      whereArgs: businessType != null ? [businessType] : null,
     );
     return List.generate(maps.length, (i) {
       return Booking.fromMap(maps[i]);

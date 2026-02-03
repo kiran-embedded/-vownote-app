@@ -56,7 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBookings() async {
     if (_allBookings.isEmpty) setState(() => _isLoading = true);
-    final bookings = await DatabaseService().getBookings();
+    final currentBusiness = BusinessService().currentType.name;
+    final bookings = await DatabaseService().getBookings(
+      businessType: currentBusiness,
+    );
     if (mounted) {
       setState(() {
         _allBookings = bookings;

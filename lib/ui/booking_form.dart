@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:vownote/utils/display_engine.dart';
@@ -161,6 +161,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
           notes: _notesController.text.trim(),
           bookingCategory: _selectedCategory,
           diaryCode: _diaryCodeController.text.trim(),
+          businessType:
+              widget.booking?.businessType ??
+              BusinessService().currentType.name,
           createdAt: widget.booking?.createdAt ?? DateTime.now(),
           updatedAt: DateTime.now(),
         );
