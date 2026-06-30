@@ -4,40 +4,181 @@
   <p>
     <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter"></a>
     <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart"></a>
-    <a href="#"><img src="https://img.shields.io/badge/IO%20Architecture-O(1)%20JSON-orange?style=for-the-badge&logo=json&logoColor=white" alt="JSON Architecture"></a>
+    <a href="#"><img src="https://img.shields.io/badge/IO%20Architecture-SQLite%20WAL-orange?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite Architecture"></a>
     <a href="#"><img src="https://img.shields.io/badge/Security-Ram--Only%20Auth-green?style=for-the-badge&logo=android&logoColor=white" alt="Security"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Cloud-Google%20Drive%20Sync-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" alt="Google Drive"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Haptics-Premium%20Engine-gold?style=for-the-badge&logo=android&logoColor=white" alt="Haptics"></a>
   </p>
+
+  <h3>⚜️ v2.3.2 — "Sensory Elegance"</h3>
+  <p><em>Google Drive Cloud Backup · SQL-Based Local Backup · Premium Haptic Engine · Swipe Gesture Haptics · Elastic Save Animation · Searchable Help Center · Bug Fixes</em></p>
 </div>
 
 ---
 
 # ⚡ Executive Technical Summary
 
-**BizLedger (v2.3.1)** is a polished, enterprise-grade update that introduces **Triple-Lock Data Safety**, **Data Isolation**, and **Universal Haptics**.
-
-### 🆕 v2.3.1 Release Highlights
-1.  **Triple-Lock Backup System**: Data is simultaneously secured in:
-    *   `/VowNote/Backups/` (Survives Uninstall)
-    *   `/Documents/VowNote/` (User Visible)
-    *   `App Storage` (Fast Access)
-    *   Includes automatic **Retry Logic** and **Checksum Verification** for 100% integrity.
-2.  **Business Data Isolation**: 
-    *   Segregates Client Data based on `Business Profile` (Wedding vs Photography).
-    *   Dynamic filtering at the SQL level ensures zero data leakage between profiles.
-3.  **Universal Haptics Engine**:
-    *   Replaces standard `HapticFeedback` with a custom engine using the `vibration` plugin.
-    *   Delivers "Premium Taptic Feel" even on low-end devices via micro-burst (5ms) vibrations.
-    *   Dynamically adapts amplitude for high-end devices.
+**BizLedger (v2.3.2)** is a major leap forward from v2.3.1, introducing **Google Drive Cloud Sync**, a fully rewritten **Premium Haptic Engine**, **SQL-Based Local Backup**, a redesigned **Settings UI**, an upgraded **Help Center**, and critical stability fixes. This release transforms BizLedger from a polished local ledger into a cloud-synchronized, tactile-first business management system.
 
 ---
 
-# 🚀 The "Unified persistence" Architecture
-## Why Single-File JSON Updates Beat Multi-File Fragmentation
+## 🆚 v2.3.2 vs v2.3.1 — What Changed
 
-One of the core architectural decisions in BizLedger was to reject the traditional "File-per-Object" model in favor of **Columnar JSON Persistence**.
+| Feature | v2.3.1 | v2.3.2 |
+| :--- | :--- | :--- |
+| **Local Backup Format** | JSON flat-file export | ✅ SQL-based (`.db` export, ACID safe) |
+| **Cloud Backup** | ❌ None | ✅ Google Drive auto-sync + restore |
+| **Haptic Feedback** | Basic `HapticFeedback` calls | ✅ Full custom Haptics Engine (`haptics.dart`) |
+| **Swipe Haptics** | ❌ None | ✅ Escalating haptics on swipe-left (delete) & swipe-right (share) |
+| **Settings UI** | Standard list tiles | ✅ Redesigned with cleaner typography + biometric gates |
+| **Save Animation** | 2s slow tick | ✅ 350ms elastic-out spring + shimmer |
+| **Help Center** | Static cards | ✅ Real-time search + Gestures section + feedback buttons |
+| **Business Insights** | Mixed text colors | ✅ Total valuation always black (light + dark modes) |
+| **Startup Bug** | Hangs/loading indefinitely | ✅ Fixed — deterministic cold boot |
+| **GDrive Warning Badge** | ❌ None | ✅ Amber ⚠️ badge if Drive not linked |
 
-### 🛑 The Problem: Multi-File Json Fragmentation
-In a naive implementation, a developer might store every Booking as a separate `.json` file in a directory:
+---
+
+## 🌟 v2.3.2 Feature Deep-Dive
+
+### ☁️ 1. Google Drive Cloud Sync & Auto-Backup
+
+BizLedger now connects to your personal Google Drive via the **`drive.appdata`** scope — a private, app-isolated storage area invisible to other apps.
+
+**How it works:**
+1. **Silent Sign-In**: On startup, BizLedger attempts a silent 2-second sign-in. If previously linked, it connects transparently.
+2. **Auto-Backup**: When enabled, the app uploads a fresh `.db` snapshot to Drive after every significant data-save event.
+3. **Auto-Restore**: On a clean install or fresh device, if the local database is empty, the app detects and downloads the latest Drive backup automatically.
+4. **Drive Not Linked Warning**: If Google Drive is not connected, a prominent amber `⚠️` badge appears in Settings next to the cloud status tile — impossible to miss.
+
+```dart
+// GoogleDriveService — scoped to private app-data folder only
+final GoogleSignIn _googleSignIn = GoogleSignIn(
+  scopes: ['https://www.googleapis.com/auth/drive.appdata'],
+);
+```
+
+---
+
+### 💾 2. SQL-Based Local Backup (Replaces JSON)
+
+The legacy JSON flat-file export has been replaced by a direct **SQLite database export**.
+
+| Old (JSON) | New (SQL) |
+| :--- | :--- |
+| Manual JSON serialization | Direct `.db` file copy |
+| Corruption risk if export interrupted | ACID-safe via SQLite WAL |
+| Large files, slow parse | Compact binary, instant seek |
+| No schema validation | Native column-type enforcement |
+
+**Backup locations (Triple-Lock):**
+- `/VowNote/Backups/` — Survives app uninstall
+- `/Documents/VowNote/` — User-visible in Files app
+- `App Storage` — Fast in-app access
+
+---
+
+### 🎮 3. Premium Haptic Engine (`haptics.dart`)
+
+v2.3.2 introduces a dedicated `Haptics` utility class built on the `vibration` plugin, completely replacing the standard Flutter `HapticFeedback` API.
+
+**Engine Capabilities:**
+
+| Method | Pattern | Use Case |
+| :--- | :--- | :--- |
+| `Haptics.light()` | 5ms micro-burst | Button taps, list selection |
+| `Haptics.medium()` | 20ms pulse | Toggles, confirmations |
+| `Haptics.heavy()` | 50ms impact | Destructive actions |
+| `Haptics.success()` | 30ms + 80ms double-tap | Save confirmed, backup done |
+| `Haptics.selection()` | 5ms tick | Scroll snapping, chip select |
+| `Haptics.error()` | Triple burst 30ms | Validation fail, auth denied |
+
+**Coverage across the app** (40+ touch points integrated):
+- Lock screen biometric tap
+- Booking form field interactions
+- Settings toggle switches
+- Help center feedback buttons
+- Swipe gesture thresholds
+- Save confirmation animation
+
+```dart
+// Initialised at app start for zero-latency first call
+await Haptics.init(); // main.dart
+```
+
+---
+
+### 👆 4. Escalating Swipe Gesture Haptics
+
+List item swipes now deliver **physical depth cues** that increase in intensity as the drag progresses — exactly like a physical mechanism engaging.
+
+**Swipe-Left (Delete):**
+```
+  0% ──────── 15% ─────── 45% ─────── 75% ──────── 100%
+  (silent)   Light       Medium      Heavy       [Confirm]
+```
+
+**Swipe-Right (Share):**
+```
+  0% ──────── 15% ─────── 45% ─────── 75% ──────── 100%
+  (silent)   Light       Medium      Heavy       [Share sheet]
+```
+
+Each threshold fires **exactly once** per swipe to avoid repeated buzzing. The escalating pattern provides an unmistakable physical "notch" feel before the user commits to a destructive action.
+
+---
+
+### ⏱️ 5. Elastic Save Animation (2× Faster)
+
+The booking save confirmation was rebuilt from scratch:
+
+| Property | v2.3.1 | v2.3.2 |
+| :--- | :--- | :--- |
+| Curve | Linear fade | `elasticOut` spring scale |
+| Duration | 2000ms total | **350ms** animation + **950ms** exit |
+| Effect | Basic opacity tick | Scale 0→1 pop + gold shimmer pulse |
+| Feel | Sluggish | Snappy & satisfying |
+
+---
+
+### 🔒 6. Settings UI Redesign & Biometric Gates
+
+The Settings screen has been fully rearchitected:
+
+- **Cleaner card-based layout** with section grouping (Account, Backup, Security, Preferences)
+- **Biometric authentication gates** on sensitive actions (data wipe, export, profile delete)
+- **Google Drive status tile** with live connection state and the amber ⚠️ warning badge if unlinked
+- **Business Insights valuation text** is now forced `Colors.black` in both light and dark themes for maximum legibility on the gold-tinted card
+
+---
+
+### 🔍 7. Upgraded Help Center
+
+| Feature | v2.3.1 | v2.3.2 |
+| :--- | :--- | :--- |
+| Search | ❌ | ✅ Real-time keyword filter |
+| Gestures section | ❌ | ✅ Full swipe & long-press guide |
+| Feedback buttons | ❌ | ✅ 👍 / 👎 with haptic confirmation |
+| Layout | Static scroll | Animated expandable cards |
+
+---
+
+### 🛠️ Bug Fixes & Stability
+
+- **🐛 Fixed: App startup hang** — Resolved database lock race condition that caused the loading spinner to spin indefinitely on cold boot. The `DatabaseService` initialization is now sequential and guarded with a `Completer`.
+- **🐛 Fixed: `BuildContext` use-after-await** — Mounted checks added across all async navigation calls.
+- **🐛 Fixed: Backup restore crash** — Edge case where an empty `.db` file from a failed backup would trigger a schema migration crash.
+- Removed all unused imports flagged by the Dart analyzer.
+- Layout spacing normalization across light and dark modes.
+
+---
+
+# 🚀 The "Unified Persistence" Architecture
+## Why Single-File SQLite Beats Multi-File JSON Fragmentation
+
+One of the core architectural decisions in BizLedger is to reject the traditional "File-per-Object" model in favor of **Columnar SQL Persistence with JSON payloads for sub-structures**.
+
+### 🛑 The Problem: Multi-File JSON Fragmentation
 ```text
 /documents/bookings/
   ├── booking_001.json
@@ -46,14 +187,11 @@ In a naive implementation, a developer might store every Booking as a separate `
   └── booking_15000.json
 ```
 **Why this fails at scale (>15k records):**
-1.  **I/O Overhead**: Opening 15,000 file descriptors to calculate a "Total Monthly Revenue" is catastrophically slow. The OS file system (inode lookup) becomes a bottleneck.
-2.  **Atomicity Implementation**: If the app crashes while writing `booking_152.json`, the file becomes corrupt. Implementing manual rollback/journaling is error-prone.
-3.  **Search Latency**: Searching for "Client Name: John" requires reading and parsing 15,000 strings into memory. This is **O(N)** complexity with high constant factors.
+1. **I/O Overhead**: Opening 15,000 file descriptors to calculate monthly revenue is catastrophically slow.
+2. **Atomicity**: If the app crashes mid-write, the file corrupts with no rollback.
+3. **Search Latency**: Every search reads and parses all N files — **O(N)** with high constant cost.
 
 ### ✅ The Solution: Unified SQL-JSON Persistence
-BizLedger uses **SQLite** as a single container file (`vownote.db`), but leverages **TEXT fields to store serialized JSON blobs** for complex sub-structures.
-
-**The Efficient Schema:**
 ```sql
 CREATE TABLE bookings (
   id TEXT PRIMARY KEY,        -- O(1) Index Lookup
@@ -63,59 +201,43 @@ CREATE TABLE bookings (
 );
 ```
 
-**Architectural Benefits:**
-1.  **O(1) Updates**: When adding a Payment, we fetch the row (O(1)), deserializing *only* that booking's JSON, append the payment, and update *only* that row. The filesystem sees ONE write to the `.db` file, which is optimized by SQLite's WAL (Write-Ahead Log).
-2.  **Zero-Cost Expansion**: We can add new fields (e.g., `"discount_reason"`) to the JSON payload without running expensive SQL `ALTER TABLE` migrations on millions of rows.
-3.  **Hybrid Querying**: We index high-frequency columns (`date`, `amount`) for SQL speed, while keeping low-frequency data (`notes`, `audit_logs`) compressed in JSON.
-
-**Visualizing the Efficiency Gain:**
-
-| Operation | Multi-File JSON Logic | BizLedger Unified Logic | Efficiency Gain |
+| Operation | Multi-File JSON | BizLedger SQL | Gain |
 | :--- | :--- | :--- | :--- |
-| **Read 1 Booking** | Open File -> Read -> Parse -> Close | Seek Index -> Read Page -> Parse | **50x Faster** (No Syscalls) |
-| **Monthly Report** | Open 100 Files in Directory | `SELECT sum(amount) FROM bookings WHERE...` | **1000x Faster** (Native C-code) |
-| **Data Integrity** | High Corruption Risk if Crash | ACID Transactions (Rollback support) | **100% Safe** |
-| **Backup** | Zip 10,000 files | Copy 1 file (`vownote.db`) | **Instant** |
+| **Read 1 Booking** | Open → Read → Parse → Close | Seek Index → Read Page | **50× Faster** |
+| **Monthly Report** | Open 100 files | `SELECT SUM(amount)...` | **1000× Faster** |
+| **Data Integrity** | Crash = corruption | ACID Transactions | **100% Safe** |
+| **Backup** | Zip 10,000 files | Copy 1 `.db` file | **Instant** |
 
 ---
 
-# 🔐 Security Architecture: transient Authentication
+# 🔐 Security Architecture: Transient Authentication
 ## The "RAM-Only" Session Model
 
-BizLedger introduces a security model designed to counter physical device theft.
+BizLedger holds authentication tokens **exclusively in the Application RAM Heap** — never written to disk.
 
-### The Vulnerability of "Persistent Auth"
-Most apps simply store a boolean `is_authenticated = true` in `SharedPreferences` (disk) with a timestamp.
-*   **Risk**: If an attacker clones the app data or has root access, they can modify this XML file to bypass the lock.
-*   **Risk**: If the app is killed and restarted, reading "true" from disk might accidentally unlock the app if the logic is flawed.
-
-### The BizLedger Solution: Volatile Memory State
-We hold the authentication token **ONLY in the Application RAM Heap**.
 ```dart
 class BiometricService {
-  // NEVER written to disk. 
+  // NEVER written to disk.
   // If the OS kills the process, this variable vanishes.
-  DateTime? _lastAuthTime; 
-  
+  DateTime? _lastAuthTime;
+
   bool get isAuthenticated {
-    if (_lastAuthTime == null) return false; // Default to LOCKED
+    if (_lastAuthTime == null) return false; // Default: LOCKED
     return DateTime.now().difference(_lastAuthTime!).inMinutes < 5;
   }
 }
 ```
 
 **Behavioral Guarantees:**
-1.  **Cold Boot (Process Start)**: RAM is empty -> `_lastAuthTime` is null -> **LOCK SCREEN ENGAGED**.
-2.  **App Switch (Background)**: RAM is preserved -> **5-Minute Grace Period** active.
-3.  **Force Stop**: RAM is cleared -> **LOCK SCREEN ENGAGED**.
+1. **Cold Boot**: RAM is empty → `_lastAuthTime` is null → **LOCK SCREEN ENGAGED**
+2. **App Switch**: RAM preserved → **5-Minute Grace Period** active
+3. **Force Stop**: RAM cleared → **LOCK SCREEN ENGAGED**
 
-This architecture guarantees that **Session Hijacking regarding disk cloning is mathematically impossible** because the session key literally does not exist on the disk.
+Session hijacking via disk cloning is **mathematically impossible** — the session key does not exist on disk.
 
 ---
 
 # 📂 Technical Directory Structure
-
-A granular look at the Service-Oriented (SOA) file organization.
 
 ```mermaid
 graph TD
@@ -123,20 +245,27 @@ graph TD
     A --> C[services/]
     A --> D[ui/]
     A --> E[utils/]
-    
+
     B --> B1["booking.dart (JSON Serialization)"]
     B --> B2["business_type.dart (Config Factory)"]
-    
+
     C --> C1["database_service.dart (SQLite WAL Engine)"]
     C --> C2["biometric_service.dart (Hardware Auth)"]
     C --> C3["theme_service.dart (Material 3 Engine)"]
-    
+    C --> C4["google_drive_service.dart (Cloud Sync)"]
+    C --> C5["backup_service.dart (Triple-Lock Backup)"]
+
     D --> D1[home_screen.dart]
     D --> D2["lock_screen.dart (Secure Enclave UI)"]
-    D --> D3[widgets/]
-    
+    D --> D3["settings_screen.dart (Redesigned)"]
+    D --> D4["help_screen.dart (Searchable)"]
+    D --> D5[widgets/]
+
+    E --> E1["haptics.dart (Premium Engine)"]
+
     style A fill:#f9f,stroke:#333,stroke-width:2px
-    style C Internet_fill:#bbf,stroke:#333
+    style C4 fill:#4285F4,stroke:#333,color:#fff
+    style E1 fill:#FFD700,stroke:#333
 ```
 
 ---
@@ -146,48 +275,51 @@ graph TD
 BizLedger implements Google's **Material 3 (M3)** spec with a custom dynamic engine.
 
 ### Algorithmic Color Extraction
-Instead of hardcoded colors, the `ThemeService` connects to the Android System Palette API.
-1.  **Input**: User's Wallpaper.
-2.  **Process**: The `dynamic_color` engine extracts the dominant Tonal Palettes (Primary, Secondary, Tertiary, Neutral).
-3.  **Generation**: We generate a **Harmonized Color Scheme** at runtime.
-    *   *Gold Wallpaper* -> App uses `Color(0xFFD4AF37)` accents.
-    *   *Blue Wallpaper* -> App uses `Color(0xFF2196F3)` accents.
+1. **Input**: User's Wallpaper
+2. **Process**: The `dynamic_color` engine extracts dominant Tonal Palettes
+3. **Generation**: Harmonized Color Scheme generated at runtime
+   - *Gold Wallpaper* → App uses `Color(0xFFD4AF37)` accents
+   - *Blue Wallpaper* → App uses `Color(0xFF2196F3)` accents
 
 ### Shimmer & Render Performance
-To achieve the "Gold Shimmer" effect on the Lock Screen without dropping frames:
--   **ShaderMask**: We use a custom `LinearGradient` Shader.
--   **TickerProvider**: A dedicated `AnimationController` syncs with the screen refresh rate (60Hz/120Hz).
--   **RepaintBoundary**: The Shimmer widget is wrapped in a Boundary to prevent it from causing the entire screen layout to recalculate every frame. This isolates the GPU instructions, keeping the main thread idle.
+- **ShaderMask**: Custom `LinearGradient` Shader for gold shimmer
+- **TickerProvider**: Dedicated `AnimationController` synced to 60Hz/120Hz
+- **RepaintBoundary**: Isolates shimmer GPU instructions from main thread
 
 ---
 
 # 📦 Installation & Deployment
 
-### Prequisites
--   Flutter SDK: `3.27.0+`
--   Dart SDK: `3.0.0+`
--   Android Studio / VS Code
--   Java: `JDK 17`
+### Prerequisites
+- Flutter SDK: `3.27.0+`
+- Dart SDK: `3.0.0+`
+- Android Studio / VS Code
+- Java: `JDK 17`
 
 ### Build Instructions
 
-1.  **Clone the Repository (SSH/HTTPS)**
+1. **Clone the Repository**
     ```bash
     git clone https://github.com/kiran-embedded/-vownote-app.git
     cd -vownote-app
     ```
 
-2.  **Hydrate Dependencies**
+2. **Hydrate Dependencies**
     ```bash
     flutter pub get
     ```
 
-3.  **Compile Release AOT (Ahead-of-Time)**
-    This compiles the Dart code into native ARM64 machine code for maximum performance.
+3. **Run Release Build (AOT Compiled)**
     ```bash
     flutter run --release
     ```
 
+4. **Install via ADB (Sideload)**
+    ```bash
+    flutter build apk --release
+    adb install build/app/outputs/flutter-apk/app-release.apk
+    ```
+
 ---
 
-*Documentation Generated by Cortex AI for BizLedger Enterprise v2.3.0*
+*Documentation updated for BizLedger Enterprise v2.3.2 — "Sensory Elegance"*
