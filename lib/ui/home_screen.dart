@@ -2,10 +2,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:vownote/utils/display_engine.dart';
 import 'package:vownote/models/booking.dart';
 import 'package:vownote/services/database_service.dart';
+import 'package:vownote/services/backup_service.dart';
 import 'package:vownote/ui/booking_form.dart';
 import 'package:vownote/utils/pdf_generator.dart';
+import 'package:vownote/services/localization_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:screenshot/screenshot.dart';
@@ -38,6 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<String> _selectedIds = {};
   final Set<String> _deletingIds = {};
 
+  String? _activeDismissibleId;
+  int _lastHapticLevel = 0;
+
   final ScreenshotController _screenshotController = ScreenshotController();
   Booking? _bookingToCapture;
   bool _isFlashing = false;
@@ -51,7 +57,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void initState() {
     super.initState();
-    _loadBookings();
+    _initRestoreAndLoad();
+  }
+
+  Future<void> _initRestoreAndLoad() async {
+    setState(() => _isLoading = true);
+    // Load local bookings first to display them instantly
+    await _loadBookings();
+    
+    // Only perform the auto-restore check (which triggers network requests) if the database is empty
+    if (_allBookings.isEmpty) {
+      try {
+        final restored = await BackupService().checkForAutoRestore().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint('⚠️ Auto-restore check timed out after 3 seconds');
+            return false;
+          },
+        );
+        if (restored) {
+          debugPrint('✅ Database auto-restored successfully on startup!');
+          Haptics.success();
+          // Reload the bookings list to show the restored data
+          await _loadBookings();
+        }
+      } catch (e) {
+        debugPrint('Error performing startup auto-restore check: $e');
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
   }
 
   Future<void> _loadBookings() async {
@@ -90,7 +127,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_selectedMonthFilter == 'All') return true;
       if (b.eventDates.isEmpty) return false;
       final firstDate = List<DateTime>.from(b.eventDates)..sort();
-      final monthKey = DateFormat('MMM', 'en_US').format(firstDate.first);
+      final monthKey = DateFormat(
+        'MMM',
+        LocalizationService().currentLanguage,
+      ).format(firstDate.first);
       return monthKey == _selectedMonthFilter;
     }).toList();
   }
@@ -100,7 +140,10 @@ class _HomeScreenState extends State<HomeScreen> {
     for (var booking in _filteredBookings) {
       if (booking.eventDates.isEmpty) continue;
       final dates = List<DateTime>.from(booking.eventDates)..sort();
-      final key = DateFormat('MMMM yyyy', 'en_US').format(dates.first);
+      final key = DateFormat(
+        'MMMM yyyy',
+        LocalizationService().currentLanguage,
+      ).format(dates.first);
       if (!grouped.containsKey(key)) grouped[key] = [];
       grouped[key]!.add(booking);
     }
@@ -166,16 +209,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Delete ${_selectedIds.length} Bookings?'),
-        content: const Text('This action cannot be undone.'),
+        title: Text('${tr('delete_bookings')} ${_selectedIds.length}?'),
+        content: Text(tr('cannot_undo')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
+            child: Text(tr('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(tr('delete'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -216,713 +259,791 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final groupedBookings = _groupBookingsByMonth();
-    final sortedKeys = groupedBookings.keys.toList()
-      ..sort((a, b) {
-        final da = DateFormat('MMMM yyyy', 'en_US').parse(a);
-        final db = DateFormat('MMMM yyyy', 'en_US').parse(b);
-        return da.compareTo(db);
-      });
+    return AnimatedBuilder(
+      animation: LocalizationService(),
+      builder: (context, child) {
+        final groupedBookings = _groupBookingsByMonth();
+        final sortedKeys = groupedBookings.keys.toList()
+          ..sort((a, b) {
+            final da = DateFormat(
+              'MMMM yyyy',
+              LocalizationService().currentLanguage,
+            ).parse(a);
+            final db = DateFormat(
+              'MMMM yyyy',
+              LocalizationService().currentLanguage,
+            ).parse(b);
+            return da.compareTo(db);
+          });
 
-    // Dynamic Month Pills
-    final Set<String> months = {'All'};
-    if (_allBookings.isNotEmpty) {
-      final sortedBookings = List<Booking>.from(_allBookings)
-        ..sort((a, b) {
-          if (a.eventDates.isEmpty) return 1;
-          if (b.eventDates.isEmpty) return -1;
-          return a.eventDates.first.compareTo(b.eventDates.first);
-        });
-
-      for (var b in sortedBookings) {
-        if (b.eventDates.isNotEmpty) {
-          // Logic: Check if we are using strict 'MMM' or something else
-          // Using 'MMM' (Jan, Feb) means merging years (Jan 2025 and Jan 2026 -> Jan)
-          // User requested "month alll,jan,feb,mar apr". This implies short format.
-          months.add(DateFormat('MMM', 'en_US').format(b.eventDates.first));
-        }
-      }
-    }
-
-    final monthList = months.toList();
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: GestureDetector(
-        onTap: () {
-          if (_isSelectionMode) {
-            setState(() {
-              _isSelectionMode = false;
-              _selectedIds.clear();
+        // Dynamic Month Pills
+        final Set<String> months = {'All'};
+        if (_allBookings.isNotEmpty) {
+          final sortedBookings = List<Booking>.from(_allBookings)
+            ..sort((a, b) {
+              if (a.eventDates.isEmpty) return 1;
+              if (b.eventDates.isEmpty) return -1;
+              return a.eventDates.first.compareTo(b.eventDates.first);
             });
-            Haptics.medium();
+
+          for (var b in sortedBookings) {
+            if (b.eventDates.isNotEmpty) {
+              // Logic: Check if we are using strict 'MMM' or something else
+              // Using 'MMM' (Jan, Feb) means merging years (Jan 2025 and Jan 2026 -> Jan)
+              // User requested "month alll,jan,feb,mar apr". This implies short format.
+              months.add(
+                DateFormat(
+                  'MMM',
+                  LocalizationService().currentLanguage,
+                ).format(b.eventDates.first),
+              );
+            }
           }
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-        behavior: HitTestBehavior.translucent, // Catch taps on empty space
-        child: Stack(
-          children: [
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification is ScrollUpdateNotification &&
-                    notification.dragDetails != null) {
-                  if (_searchFocus.hasFocus) {
-                    _searchFocus.unfocus();
-                  }
-                }
-                return false;
-              },
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                slivers: [
-                  SliverAppBar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).scaffoldBackgroundColor.withOpacity(0.8),
-                    surfaceTintColor: Colors.transparent,
-                    pinned: true,
-                    stretch: true,
-                    expandedHeight: 110,
-                    flexibleSpace: ClipRRect(
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: FlexibleSpaceBar(
-                          centerTitle: false,
-                          titlePadding: const EdgeInsets.only(
-                            left: 20,
-                            bottom: 12,
-                          ),
-                          title: _isSelectionMode
-                              ? Text(
-                                  '${_selectedIds.length} Selected',
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                )
-                              : ShimmerText(
-                                  BusinessService().config.appTitle,
-                                  style: GoogleFonts.outfit(
-                                    // Remove color here so shimmer gradient takes over, or use white/black base
-                                    color:
-                                        Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  // Bright Gold Shimmer for maximum visibility
-                                  shimmerColors: const [
-                                    Color(0xFFD4AF37), // Gold
-                                    Color(0xFFF7EF8A), // Bright Yellow Gold
-                                    Color(0xFFD4AF37), // Gold
-                                    Color(0xFFC5A028), // Dark Gold
-                                    Color(0xFFD4AF37), // Gold
-                                  ],
-                                  duration: const Duration(milliseconds: 2500),
-                                ),
-                        ),
-                      ),
+        }
+
+        final monthList = months.toList();
+        final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: GestureDetector(
+            onTap: () {
+              if (_isSelectionMode) {
+                setState(() {
+                  _isSelectionMode = false;
+                  _selectedIds.clear();
+                });
+                Haptics.medium();
+              }
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+            behavior: HitTestBehavior.translucent, // Catch taps on empty space
+            child: Stack(
+              children: [
+                NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    if (notification is ScrollUpdateNotification &&
+                        notification.dragDetails != null) {
+                      if (_searchFocus.hasFocus) {
+                        _searchFocus.unfocus();
+                      }
+                    }
+                    return false;
+                  },
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
                     ),
-                    actions: [
-                      IconButton(
-                        onPressed: () => Navigator.push(
+                    slivers: [
+                      SliverAppBar(
+                        backgroundColor: Theme.of(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const AnalyticsScreen(),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.analytics_outlined,
-                          color: Color(0xFFD4AF37),
-                        ),
-                      ),
-                      if (_isSelectionMode)
-                        TextButton(
-                          onPressed: () => setState(() {
-                            _isSelectionMode = false;
-                            _selectedIds.clear();
-                          }),
-                          child: const Text(
-                            'Done',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 17,
+                        ).scaffoldBackgroundColor.withOpacity(0.8),
+                        surfaceTintColor: Colors.transparent,
+                        pinned: true,
+                        stretch: true,
+                        expandedHeight: 110,
+                        flexibleSpace: ClipRRect(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: FlexibleSpaceBar(
+                              centerTitle: false,
+                              titlePadding: const EdgeInsets.only(
+                                left: 20,
+                                bottom: 12,
+                              ),
+                              title: _isSelectionMode
+                                  ? Text(
+                                      '${_selectedIds.length} ${tr('selected')}',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    )
+                                  : ShimmerText(
+                                      tr(BusinessService().config.appTitle),
+                                      style: DisplayEngine.outfit(
+                                        // Remove color here so shimmer gradient takes over, or use white/black base
+                                        color:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white
+                                            : Colors.black,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      // Bright Gold Shimmer for maximum visibility
+                                      shimmerColors: const [
+                                        Color(0xFFD4AF37), // Gold
+                                        Color(0xFFF7EF8A), // Bright Yellow Gold
+                                        Color(0xFFD4AF37), // Gold
+                                        Color(0xFFC5A028), // Dark Gold
+                                        Color(0xFFD4AF37), // Gold
+                                      ],
+                                      duration: const Duration(
+                                        milliseconds: 2500,
+                                      ),
+                                    ),
                             ),
                           ),
-                        )
-                      else
-                        IconButton(
-                          onPressed: () async {
-                            await Navigator.push(
+                        ),
+                        actions: [
+                          IconButton(
+                            onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const SettingsScreen(),
+                                builder: (_) => const AnalyticsScreen(),
                               ),
-                            );
-                            _loadBookings();
-                          },
-                          icon:
-                              Icon(
-                                    Icons.settings,
-                                    color: Theme.of(context).iconTheme.color,
-                                  )
-                                  .animate(
-                                    onPlay: (controller) => controller.repeat(),
-                                  )
-                                  .shimmer(
-                                    duration: 2500.ms,
-                                    color: const Color(
-                                      0xFFF5F5F5,
-                                    ), // Platinum white
-                                    angle: 45,
-                                  ),
-                        ),
-                    ],
-                  ),
-                  SliverToBoxAdapter(
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: AnimatedBuilder(
-                            animation: _searchFocus,
-                            builder: (context, child) {
-                              final bool hasFocus = _searchFocus.hasFocus;
-                              return AnimatedContainer(
-                                    duration: 300.ms,
-                                    curve: Curves.easeOutCubic,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: hasFocus ? 4 : 0,
-                                    ),
-                                    child: TextField(
-                                      focusNode: _searchFocus,
-                                      onChanged: _filterBookings,
-                                      decoration: InputDecoration(
-                                        hintText: 'Search Bookings...',
-                                        hintStyle: TextStyle(
-                                          fontSize: 14,
-                                          color: isDark
-                                              ? Colors.white38
-                                              : Colors.black38,
-                                        ),
-                                        prefixIcon: Icon(
-                                          Icons.search,
-                                          size: 20,
-                                          color: hasFocus
-                                              ? const Color(0xFFD4AF37)
-                                              : (isDark
-                                                    ? Colors.white54
-                                                    : Colors.black54),
-                                        ),
-                                        suffixIcon: _searchQuery.isNotEmpty
-                                            ? IconButton(
-                                                icon: const Icon(
-                                                  Icons.close,
-                                                  size: 16,
-                                                ),
-                                                onPressed: () {
-                                                  _filterBookings('');
-                                                  // Clear the controller if we had one,
-                                                  // but since we don't use one, let's just trigger rebuild.
-                                                },
-                                              )
-                                            : null,
-                                        filled: true,
-                                        fillColor: hasFocus
-                                            ? (isDark
-                                                  ? Colors.white.withOpacity(
-                                                      0.08,
-                                                    )
-                                                  : Colors.black.withOpacity(
-                                                      0.03,
-                                                    ))
-                                            : Theme.of(context).cardTheme.color,
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            hasFocus ? 14 : 10,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              vertical: 0,
-                                            ),
-                                      ),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.copyWith(fontSize: 15),
-                                    ),
-                                  )
-                                  .animate(target: hasFocus ? 1 : 0)
-                                  .shimmer(
-                                    duration: 1.seconds,
-                                    color: Colors.white10,
-                                  );
-                            },
-                          ),
-                        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
-                        SizedBox(
-                          height: 52,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            itemCount: monthList.length,
-                            itemBuilder: (context, i) {
-                              final m = monthList[i];
-                              final isSelected = _selectedMonthFilter == m;
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child:
-                                    ChoiceChip(
-                                          label: Text(m),
-                                          selected: isSelected,
-                                          onSelected: (selected) {
-                                            if (selected) {
-                                              Haptics.light();
-                                              setState(() {
-                                                _selectedMonthFilter = m;
-                                                _applyFilters();
-                                              });
-                                            }
-                                          },
-                                          selectedColor: const Color(
-                                            0xFFD4AF37,
-                                          ),
-                                          labelStyle: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : (Theme.of(
-                                                            context,
-                                                          ).brightness ==
-                                                          Brightness.light
-                                                      ? Colors.black87
-                                                      : Colors.grey),
-                                            fontWeight: isSelected
-                                                ? FontWeight.bold
-                                                : FontWeight.w500,
-                                          ),
-                                          backgroundColor: Theme.of(
-                                            context,
-                                          ).cardTheme.color,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          showCheckmark: false,
-                                          side: BorderSide.none,
-                                        )
-                                        .animate(
-                                          target: isSelected ? 1 : 0,
-                                          onPlay: (c) => isSelected
-                                              ? c.repeat(reverse: true)
-                                              : null,
-                                        )
-                                        .scale(
-                                          begin: const Offset(1.0, 1.0),
-                                          end: const Offset(1.08, 1.08),
-                                          duration: 1500.ms,
-                                          curve: Curves.easeInOutSine,
-                                        ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_isLoading)
-                    const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  if (!_isLoading && groupedBookings.isEmpty)
-                    SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.event_note,
-                              size: 64,
-                              color: Colors.grey[300],
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              BusinessService().config.emptyStateMessage,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[400],
+                            icon: const Icon(
+                              Icons.analytics_outlined,
+                              color: Color(0xFFD4AF37),
+                            ),
+                          ),
+                          if (_isSelectionMode)
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _isSelectionMode = false;
+                                _selectedIds.clear();
+                              }),
+                              child: const Text(
+                                'Done',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            )
+                          else
+                            IconButton(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SettingsScreen(),
+                                  ),
+                                );
+                                _loadBookings();
+                              },
+                              icon:
+                                  Icon(
+                                        Icons.settings,
+                                        color: Theme.of(
+                                          context,
+                                        ).iconTheme.color,
+                                      )
+                                      .animate(
+                                        onPlay: (controller) =>
+                                            controller.repeat(),
+                                      )
+                                      .shimmer(
+                                        duration: 2500.ms,
+                                        color: const Color(
+                                          0xFFF5F5F5,
+                                        ), // Platinum white
+                                        angle: 45,
+                                      ),
+                            ),
+                        ],
+                      ),
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: AnimatedBuilder(
+                                animation: _searchFocus,
+                                builder: (context, child) {
+                                  final bool hasFocus = _searchFocus.hasFocus;
+                                  return AnimatedContainer(
+                                        duration: 300.ms,
+                                        curve: Curves.easeOutCubic,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: hasFocus ? 4 : 0,
+                                        ),
+                                        child: TextField(
+                                          focusNode: _searchFocus,
+                                          onChanged: _filterBookings,
+                                          decoration: InputDecoration(
+                                            hintText: 'Search Bookings...',
+                                            hintStyle: TextStyle(
+                                              fontSize: 14,
+                                              color: isDark
+                                                  ? Colors.white38
+                                                  : Colors.black38,
+                                            ),
+                                            prefixIcon: Icon(
+                                              Icons.search,
+                                              size: 20,
+                                              color: hasFocus
+                                                  ? const Color(0xFFD4AF37)
+                                                  : (isDark
+                                                        ? Colors.white54
+                                                        : Colors.black54),
+                                            ),
+                                            suffixIcon: _searchQuery.isNotEmpty
+                                                ? IconButton(
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      size: 16,
+                                                    ),
+                                                    onPressed: () {
+                                                      _filterBookings('');
+                                                      // Clear the controller if we had one,
+                                                      // but since we don't use one, let's just trigger rebuild.
+                                                    },
+                                                  )
+                                                : null,
+                                            filled: true,
+                                            fillColor: hasFocus
+                                                ? (isDark
+                                                      ? Colors.white
+                                                            .withOpacity(0.08)
+                                                      : Colors.black
+                                                            .withOpacity(0.03))
+                                                : Theme.of(
+                                                    context,
+                                                  ).cardTheme.color,
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    hasFocus ? 14 : 10,
+                                                  ),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 0,
+                                                ),
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyLarge
+                                              ?.copyWith(fontSize: 15),
+                                        ),
+                                      )
+                                      .animate(target: hasFocus ? 1 : 0)
+                                      .shimmer(
+                                        duration: 1.seconds,
+                                        color: Colors.white10,
+                                      );
+                                },
+                              ),
+                            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
+                            SizedBox(
+                              height: 52,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                itemCount: monthList.length,
+                                itemBuilder: (context, i) {
+                                  final m = monthList[i];
+                                  final isSelected = _selectedMonthFilter == m;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child:
+                                        ChoiceChip(
+                                              label: Text(m),
+                                              selected: isSelected,
+                                              onSelected: (selected) {
+                                                if (selected) {
+                                                  Haptics.light();
+                                                  setState(() {
+                                                    _selectedMonthFilter = m;
+                                                    _applyFilters();
+                                                  });
+                                                }
+                                              },
+                                              selectedColor: const Color(
+                                                0xFFD4AF37,
+                                              ),
+                                              labelStyle: TextStyle(
+                                                color: isSelected
+                                                    ? Colors.white
+                                                    : (Theme.of(
+                                                                context,
+                                                              ).brightness ==
+                                                              Brightness.light
+                                                          ? Colors.black87
+                                                          : Colors.grey),
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w500,
+                                              ),
+                                              backgroundColor: Theme.of(
+                                                context,
+                                              ).cardTheme.color,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              showCheckmark: false,
+                                              side: BorderSide.none,
+                                            )
+                                            .animate(
+                                              target: isSelected ? 1 : 0,
+                                              onPlay: (c) => isSelected
+                                                  ? c.repeat(reverse: true)
+                                                  : null,
+                                            )
+                                            .scale(
+                                              begin: const Offset(1.0, 1.0),
+                                              end: const Offset(1.08, 1.08),
+                                              duration: 1500.ms,
+                                              curve: Curves.easeInOutSine,
+                                            ),
+                                  );
+                                },
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  if (!_isLoading && groupedBookings.isNotEmpty)
-                    ...sortedKeys.asMap().entries.map((entry) {
-                      final monthKey = entry.value;
-                      final monthBookings = groupedBookings[monthKey]!;
-                      return SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    monthKey.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      Haptics.heavy();
-
-                                      // Show premium processing dialog
-                                      showDialog(
-                                        context: context,
-                                        barrierDismissible: false,
-                                        builder: (context) => Center(
-                                          child:
-                                              Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 32,
-                                                          vertical: 24,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).cardColor,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            20,
-                                                          ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black
-                                                              .withOpacity(0.2),
-                                                          blurRadius: 20,
-                                                          spreadRadius: 5,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        const CircularProgressIndicator(
-                                                          color: Color(
-                                                            0xFFD4AF37,
-                                                          ),
-                                                          strokeWidth: 3,
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 20,
-                                                        ),
-                                                        Text(
-                                                              "Generating PDF...",
-                                                              style: GoogleFonts.inter(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                                decoration:
-                                                                    TextDecoration
-                                                                        .none,
-                                                                color:
-                                                                    Theme.of(
-                                                                          context,
-                                                                        )
-                                                                        .textTheme
-                                                                        .bodyLarge
-                                                                        ?.color,
-                                                                fontSize: 15,
-                                                              ),
-                                                            )
-                                                            .animate(
-                                                              onPlay: (c) =>
-                                                                  c.repeat(),
-                                                            )
-                                                            .shimmer(
-                                                              duration:
-                                                                  1.5.seconds,
-                                                              color:
-                                                                  const Color(
-                                                                    0xFFD4AF37,
-                                                                  ),
-                                                            ),
-                                                      ],
-                                                    ),
-                                                  )
-                                                  .animate()
-                                                  .scale(
-                                                    duration: 400.ms,
-                                                    curve: Curves.easeOutBack,
-                                                  )
-                                                  .fadeIn(),
-                                        ),
-                                      );
-
-                                      try {
-                                        final isDark =
-                                            Theme.of(context).brightness ==
-                                            Brightness.dark;
-
-                                        // Artificial delay to show off the animation (optional, but feels premium)
-                                        await Future.delayed(800.ms);
-
-                                        await PdfGenerator.generateMonthlyReport(
-                                          monthKey,
-                                          monthBookings,
-                                          isDarkMode: isDark,
-                                        );
-                                      } finally {
-                                        Navigator.of(
-                                          context,
-                                        ).pop(); // Close dialog
-                                        Haptics.success();
-                                      }
-                                    },
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.picture_as_pdf,
-                                          color: Colors.amber,
-                                          size: 16,
-                                        ),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Export PDF',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.amber,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardTheme.color,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  ...monthBookings
-                                      .asMap()
-                                      .entries
-                                      .map((entry) {
-                                        final i = entry.key;
-                                        final booking = entry.value;
-                                        final isLast =
-                                            i == monthBookings.length - 1;
-                                        final isSelected = _selectedIds
-                                            .contains(booking.id);
-
-                                        return Dismissible(
-                                          key: Key('dismiss_${booking.id}'),
-                                          direction:
-                                              DismissDirection.endToStart,
-                                          background: Container(
-                                            alignment: Alignment.centerRight,
-                                            padding: const EdgeInsets.only(
-                                              right: 20,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.redAccent,
-                                              borderRadius:
-                                                  BorderRadius.circular(15),
-                                            ),
-                                            child: const Icon(
-                                              Icons.delete,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          onDismissed: (_) {
-                                            Haptics.heavy();
-                                            _deleteBooking(booking.id);
-                                          },
-                                          confirmDismiss: (_) async {
-                                            return await showDialog(
-                                              context: context,
-                                              builder: (c) => AlertDialog(
-                                                title: const Text(
-                                                  'Delete Booking?',
-                                                ),
-                                                content: const Text(
-                                                  'This action cannot be undone.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, false),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, true),
-                                                    child: const Text(
-                                                      'Delete',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          },
-                                          child:
-                                              BookingCard(
-                                                    booking: booking,
-                                                    isSelected: isSelected,
-                                                    isSelectionMode:
-                                                        _isSelectionMode,
-                                                    isLast: isLast,
-                                                    onTap: () {
-                                                      if (_isSelectionMode) {
-                                                        _toggleItemSelection(
-                                                          booking.id,
-                                                        );
-                                                      } else {
-                                                        Navigator.push(
-                                                          context,
-                                                          CalmPageRoute(
-                                                            builder: (_) =>
-                                                                BookingFormScreen(
-                                                                  booking:
-                                                                      booking,
-                                                                ),
-                                                          ),
-                                                        ).then(
-                                                          (_) =>
-                                                              _loadBookings(),
-                                                        );
-                                                      }
-                                                    },
-                                                    onLongPress: () {
-                                                      if (!_isSelectionMode) {
-                                                        _toggleSelectionMode(
-                                                          booking.id,
-                                                        );
-                                                      }
-                                                    },
-                                                    onShare: () =>
-                                                        _showShareOptions(
-                                                          context,
-                                                          booking,
-                                                        ),
-                                                  )
-                                                  .animate(
-                                                    target:
-                                                        _deletingIds.contains(
-                                                          booking.id,
-                                                        )
-                                                        ? 1
-                                                        : 0,
-                                                  )
-                                                  .shake(duration: 400.ms)
-                                                  .scale(
-                                                    end: Offset.zero,
-                                                    duration: 400.ms,
-                                                  )
-                                                  .fadeOut(),
-                                        );
-                                      })
-                                      .toList()
-                                      .animate(interval: 50.ms)
-                                      .fadeIn(duration: 400.ms)
-                                      .move(
-                                        begin: const Offset(0, 10),
-                                        curve: Curves.easeOutCubic,
-                                      ),
-                                ],
-                              ),
-                            ),
-                          ],
+                      if (_isLoading)
+                        const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator()),
                         ),
-                      );
-                    }),
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
-              ),
-            ),
-            if (_bookingToCapture != null)
-              Positioned(
-                left: -1000,
-                child: BookingCardImage(
-                  booking: _bookingToCapture!,
-                  isDarkMode: isDark,
+                      if (!_isLoading && groupedBookings.isEmpty)
+                        SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.event_note,
+                                  size: 64,
+                                  color: Colors.grey[300],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  tr(BusinessService().config.emptyStateMessage),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[400],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (!_isLoading && groupedBookings.isNotEmpty)
+                        ...sortedKeys.asMap().entries.map((entry) {
+                          final monthKey = entry.value;
+                          final monthBookings = groupedBookings[monthKey]!;
+                          return SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    24,
+                                    20,
+                                    8,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        monthKey.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          Haptics.heavy();
+
+                                          // Show premium processing dialog
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (context) => PopScope(
+                                              canPop: false,
+                                              child: Center(
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 32,
+                                                    vertical: 24,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).cardColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      20,
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(
+                                                          0.2,
+                                                        ),
+                                                        blurRadius: 20,
+                                                        spreadRadius: 5,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const CircularProgressIndicator(
+                                                        color: Color(
+                                                          0xFFD4AF37,
+                                                        ),
+                                                        strokeWidth: 3,
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 20,
+                                                      ),
+                                                      Text(
+                                                        "Generating PDF...",
+                                                        style: DisplayEngine.font(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          decoration:
+                                                              TextDecoration.none,
+                                                          color: Theme.of(context)
+                                                              .textTheme
+                                                              .bodyLarge
+                                                              ?.color,
+                                                          fontSize: 15,
+                                                        ),
+                                                      )
+                                                          .animate(
+                                                            onPlay: (c) =>
+                                                                c.repeat(),
+                                                          )
+                                                          .shimmer(
+                                                            duration: 1.5
+                                                                .seconds,
+                                                            color: const Color(
+                                                              0xFFD4AF37,
+                                                            ),
+                                                          ),
+                                                    ],
+                                                  ),
+                                                )
+                                                    .animate()
+                                                    .scale(
+                                                      duration: 400.ms,
+                                                      curve:
+                                                          Curves.easeOutBack,
+                                                    )
+                                                    .fadeIn(),
+                                              ),
+                                            ),
+                                          );
+
+                                          try {
+                                            final isDark =
+                                                Theme.of(context).brightness ==
+                                                Brightness.dark;
+
+                                            // Artificial delay to show off the animation (optional, but feels premium)
+                                            await Future.delayed(800.ms);
+
+                                            await PdfGenerator.generateMonthlyReport(
+                                              monthKey,
+                                              monthBookings,
+                                              isDarkMode: isDark,
+                                            );
+                                          } finally {
+                                            Navigator.of(
+                                              context,
+                                            ).pop(); // Close dialog
+                                            Haptics.success();
+                                          }
+                                        },
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.picture_as_pdf,
+                                              color: Theme.of(context).primaryColor,
+                                              size: 16,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Export PDF',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Theme.of(context).primaryColor,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardTheme.color,
+                                    borderRadius: BorderRadius.circular(24),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      ...monthBookings
+                                          .asMap()
+                                          .entries
+                                          .map((entry) {
+                                            final i = entry.key;
+                                            final booking = entry.value;
+                                            final isLast =
+                                                i == monthBookings.length - 1;
+                                            final isSelected = _selectedIds
+                                                .contains(booking.id);
+
+                                            return Dismissible(
+                                              key: Key('dismiss_${booking.id}'),
+                                              direction: DismissDirection.horizontal,
+                                              onUpdate: (details) {
+                                                final itemId = booking.id;
+                                                if (_activeDismissibleId != itemId) {
+                                                  _activeDismissibleId = itemId;
+                                                  _lastHapticLevel = 0;
+                                                }
+                                                int currentLevel = 0;
+                                                if (details.progress > 0.75) {
+                                                  currentLevel = 3;
+                                                } else if (details.progress > 0.45) {
+                                                  currentLevel = 2;
+                                                } else if (details.progress > 0.15) {
+                                                  currentLevel = 1;
+                                                }
+                                                if (currentLevel != _lastHapticLevel) {
+                                                  _lastHapticLevel = currentLevel;
+                                                  if (currentLevel == 1) {
+                                                    Haptics.light();
+                                                  } else if (currentLevel == 2) {
+                                                    Haptics.medium();
+                                                  } else if (currentLevel == 3) {
+                                                    Haptics.heavy();
+                                                  }
+                                                }
+                                              },
+                                              background: Container(
+                                                alignment: Alignment.centerLeft,
+                                                padding: const EdgeInsets.only(left: 20),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green,
+                                                  borderRadius: BorderRadius.circular(15),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.share,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              secondaryBackground: Container(
+                                                alignment: Alignment.centerRight,
+                                                padding: const EdgeInsets.only(right: 20),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  borderRadius: BorderRadius.circular(15),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              onDismissed: (direction) {
+                                                if (direction == DismissDirection.endToStart) {
+                                                  Haptics.heavy();
+                                                  _deleteBooking(booking.id);
+                                                }
+                                              },
+                                              confirmDismiss: (direction) async {
+                                                if (direction == DismissDirection.endToStart) {
+                                                  return await showDialog(
+                                                    context: context,
+                                                    builder: (c) => AlertDialog(
+                                                      title: const Text(
+                                                        'Delete Booking?',
+                                                      ),
+                                                      content: const Text(
+                                                        'This action cannot be undone.',
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                c,
+                                                                false,
+                                                              ),
+                                                          child: const Text(
+                                                            'Cancel',
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                c,
+                                                                true,
+                                                              ),
+                                                          child: const Text(
+                                                            'Delete',
+                                                            style: TextStyle(
+                                                              color: Colors.red,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                } else if (direction == DismissDirection.startToEnd) {
+                                                  Haptics.medium();
+                                                  _showShareOptions(context, booking);
+                                                  return false; // Prevents removal from list
+                                                }
+                                                return false;
+                                              },
+                                              child:
+                                                  BookingCard(
+                                                        booking: booking,
+                                                        isSelected: isSelected,
+                                                        isSelectionMode:
+                                                            _isSelectionMode,
+                                                        isLast: isLast,
+                                                        onTap: () {
+                                                          if (_isSelectionMode) {
+                                                            _toggleItemSelection(
+                                                              booking.id,
+                                                            );
+                                                          } else {
+                                                            Navigator.push(
+                                                              context,
+                                                              CalmPageRoute(
+                                                                builder: (_) =>
+                                                                    BookingFormScreen(
+                                                                      booking:
+                                                                          booking,
+                                                                    ),
+                                                              ),
+                                                            ).then(
+                                                              (_) =>
+                                                                  _loadBookings(),
+                                                            );
+                                                          }
+                                                        },
+                                                        onLongPress: () {
+                                                          if (!_isSelectionMode) {
+                                                            _toggleSelectionMode(
+                                                              booking.id,
+                                                            );
+                                                          }
+                                                        },
+                                                        onShare: () =>
+                                                            _showShareOptions(
+                                                              context,
+                                                              booking,
+                                                            ),
+                                                      )
+                                                      .animate(
+                                                        target:
+                                                            _deletingIds
+                                                                .contains(
+                                                                  booking.id,
+                                                                )
+                                                            ? 1
+                                                            : 0,
+                                                      )
+                                                      .shake(duration: 400.ms)
+                                                      .scale(
+                                                        end: Offset.zero,
+                                                        duration: 400.ms,
+                                                      )
+                                                      .fadeOut(),
+                                            );
+                                          })
+                                          .toList()
+                                          .animate(interval: 50.ms)
+                                          .fadeIn(duration: 400.ms)
+                                          .move(
+                                            begin: const Offset(0, 10),
+                                            curve: Curves.easeOutCubic,
+                                          ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    ],
+                  ),
                 ),
-              ),
-            // Flash Overlay
-            if (_isFlashing)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.white.withOpacity(0.8),
-                ).animate().fadeOut(duration: 300.ms, curve: Curves.easeOut),
-              ),
-          ],
-        ),
-      ),
-      floatingActionButton: _isSelectionMode
-          ? FloatingActionButton.extended(
-              onPressed: _deleteSelected,
-              backgroundColor: Colors.red,
-              icon: const Icon(Icons.delete),
-              label: Text('Delete (${_selectedIds.length})'),
-            )
-          : FloatingActionButton(
-              backgroundColor: const Color(0xFFD4AF37),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              onPressed: () async {
-                Haptics.light();
-                await Navigator.push(
-                  context,
-                  CalmPageRoute(builder: (_) => const BookingFormScreen()),
-                );
-                _loadBookings();
-              },
-              child: const Icon(Icons.add, color: Colors.white),
+                if (_bookingToCapture != null)
+                  Positioned(
+                    left: -1000,
+                    child: BookingCardImage(
+                      booking: _bookingToCapture!,
+                      isDarkMode: isDark,
+                    ),
+                  ),
+                // Flash Overlay
+                if (_isFlashing)
+                  Positioned.fill(
+                    child: Container(color: Colors.white.withOpacity(0.8))
+                        .animate()
+                        .fadeOut(duration: 300.ms, curve: Curves.easeOut),
+                  ),
+              ],
             ),
+          ),
+          floatingActionButton: _isSelectionMode
+              ? FloatingActionButton.extended(
+                  onPressed: _deleteSelected,
+                  backgroundColor: Colors.red,
+                  icon: const Icon(Icons.delete),
+                  label: Text('${tr('delete')} (${_selectedIds.length})'),
+                )
+              : FloatingActionButton(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  onPressed: () async {
+                    Haptics.light();
+                    await Navigator.push(
+                      context,
+                      CalmPageRoute(builder: (_) => const BookingFormScreen()),
+                    );
+                    _loadBookings();
+                  },
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
+        );
+      },
     );
   }
 
@@ -941,15 +1062,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.text_fields, color: Colors.green),
-              title: const Text('Share Text (WhatsApp/Other)'),
+              title: Text(tr('share_text')),
               onTap: () {
                 Navigator.pop(context);
                 _shareText(_formatBookingMessage(booking));
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.image, color: Colors.amber),
-              title: const Text('Share Card Image'),
+             ListTile(
+              leading: Icon(Icons.image, color: Theme.of(context).primaryColor),
+              title: Text(tr('share_image_card')),
               onTap: () {
                 Navigator.pop(context);
                 _shareScreenshot(
@@ -968,21 +1089,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final dates = booking.eventDates
         .map((d) => DateFormat('dd MMM yyyy').format(d))
         .join(', ');
-    return """Wedding Booking Confirmed!
+    return """${tr('booking_confirmed_title')}!
 
-Bride: ${booking.brideName}
-Groom: ${booking.groomName.isNotEmpty ? booking.groomName : 'N/A'}
+${tr(BusinessService().config.client1Label)}: ${booking.brideName}
+${tr(BusinessService().config.client2Label)}: ${booking.groomName.isNotEmpty ? booking.groomName : tr('not_applicable')}
 
-📅 Dates: $dates
-📍 Address: ${booking.address.isNotEmpty ? booking.address : 'N/A'}
-📞 Contact: ${booking.phoneNumber}
+📅 ${tr(BusinessService().config.eventLabel)}: $dates
+📍 ${tr('address')}: ${booking.address.isNotEmpty ? booking.address : tr('not_applicable')}
+📞 ${tr('contact')}: ${booking.phoneNumber}
 
-Financials:
-Total: ₹${booking.totalAmount.toStringAsFixed(0)}
-Received: ₹${booking.receivedAmount.toStringAsFixed(0)}
-Due: ₹${booking.pendingAmount.toStringAsFixed(0)}
+${tr('financials')}:
+${tr('total')}: ₹${booking.totalAmount.toStringAsFixed(0)}
+${tr('received')}: ₹${booking.receivedAmount.toStringAsFixed(0)}
+${tr('due')}: ₹${booking.pendingAmount.toStringAsFixed(0)}
 
-Thank you!""";
+${tr('thank_you')}!""";
   }
 }
 
@@ -1067,7 +1188,7 @@ class BookingCard extends StatelessWidget {
                                         child: Text(
                                           booking.displayIdentity,
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            color: Colors.black,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 11,
                                           ),
@@ -1115,7 +1236,7 @@ class BookingCard extends StatelessWidget {
                                       .map(
                                         (d) => DateFormat(
                                           'd MMM',
-                                          'en_US',
+                                          LocalizationService().currentLanguage,
                                         ).format(d),
                                       )
                                       .join(', '),
@@ -1137,7 +1258,7 @@ class BookingCard extends StatelessWidget {
                                     const SizedBox(width: 12),
                                     if (booking.pendingAmount > 0)
                                       Text(
-                                        'Due: ₹${booking.pendingAmount.toStringAsFixed(0)}',
+                                        '${tr('due')}: ₹${booking.pendingAmount.toStringAsFixed(0)}',
                                         style: const TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,

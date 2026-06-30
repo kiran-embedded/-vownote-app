@@ -1,3 +1,4 @@
+import 'package:vownote/services/localization_service.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,7 +84,7 @@ class BiometricService {
     }
 
     final didAuthenticate = await _localAuth.authenticate(
-      localizedReason: 'Authenticate to access BizLedger',
+      localizedReason: tr('auth_reason'),
       options: const AuthenticationOptions(
         stickyAuth: true,
         biometricOnly: false, // Allow PIN/Pattern as fallback
@@ -112,13 +113,13 @@ class BiometricService {
   /// Get biometric type string for UI display
   String getBiometricTypeString(List<BiometricType> types) {
     if (types.contains(BiometricType.face)) {
-      return 'Face ID';
+      return tr('face_id');
     } else if (types.contains(BiometricType.fingerprint)) {
-      return 'Fingerprint';
+      return tr('fingerprint');
     } else if (types.contains(BiometricType.iris)) {
-      return 'Iris';
+      return tr('iris');
     } else {
-      return 'Biometric';
+      return tr('biometric');
     }
   }
 }

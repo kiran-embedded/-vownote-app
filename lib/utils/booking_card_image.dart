@@ -18,7 +18,7 @@ class BookingCardImage extends StatelessWidget {
         ? const Color(0xFF1C1C1E)
         : const Color(0xFFFBFBF9);
     final textColor = isDarkMode ? Colors.white : Colors.black;
-    final accentColor = isDarkMode ? Colors.amber[300]! : Colors.amber;
+    final accentColor = isDarkMode ? const Color(0xFFD4AF37) : const Color(0xFF9A7B2C);
     final secondaryTextColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
 
     return Container(
@@ -37,7 +37,7 @@ class BookingCardImage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Vownote',
+                'BizLedger',
                 style: TextStyle(
                   color: accentColor,
                   fontSize: 18,

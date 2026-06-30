@@ -1,15 +1,22 @@
 import 'package:flutter/services.dart';
-
 import 'package:vibration/vibration.dart';
+import 'dart:io';
 
 class Haptics {
   static bool _enabled = true;
   static bool _hasCustomVibration = false;
+  static bool _hasVibrator = false;
+  static bool _isIOS = Platform.isIOS;
 
   /// Initialize haptics support
   static Future<void> init() async {
-    //Check if device supports custom vibration patterns/amplitude
-    _hasCustomVibration = await Vibration.hasCustomVibrationsSupport();
+    try {
+      _hasVibrator = (await Vibration.hasVibrator()) ?? false;
+      _hasCustomVibration = (await Vibration.hasCustomVibrationsSupport()) ?? false;
+    } catch (_) {
+      _hasCustomVibration = false;
+      _hasVibrator = false;
+    }
   }
 
   static void setEnabled(bool enabled) {
@@ -18,81 +25,105 @@ class Haptics {
 
   static bool get isEnabled => _enabled;
 
-  /// Light impact (e.g. keypress, switch)
-  /// Simulates a crisp click using 10ms vibration
+  /// Light impact (e.g. keypress, switch, subtle tap)
   static Future<void> light() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      if (_hasCustomVibration) {
-        // High-end: Low amplitude, short duration
-        Vibration.vibrate(duration: 10, amplitude: 30);
-      } else {
-        // Low-end: Shortest possible vibration to simulate click
-        Vibration.vibrate(duration: 10);
-      }
+    if (_isIOS) {
+      await HapticFeedback.lightImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
+      Vibration.vibrate(duration: 25, amplitude: 60); // Increased for midrange
+    } else if (_hasVibrator) {
+      Vibration.vibrate(duration: 25);
     } else {
-      // Fallback
-      HapticFeedback.lightImpact();
+      await HapticFeedback.lightImpact();
     }
   }
 
-  /// Medium impact (e.g. success, significant action)
+  /// Medium impact (e.g. success, significant action, opening dialogs)
   static Future<void> medium() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      if (_hasCustomVibration) {
-        Vibration.vibrate(duration: 20, amplitude: 60);
-      } else {
-        Vibration.vibrate(duration: 20);
-      }
+    if (_isIOS) {
+      await HapticFeedback.mediumImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
+      Vibration.vibrate(duration: 40, amplitude: 120); // Increased
+    } else if (_hasVibrator) {
+      Vibration.vibrate(duration: 40);
     } else {
-      HapticFeedback.mediumImpact();
+      await HapticFeedback.mediumImpact();
     }
   }
 
-  /// Heavy impact (e.g. error, delete)
+  /// Heavy impact (e.g. error, delete, major state changes)
   static Future<void> heavy() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      if (_hasCustomVibration) {
-        Vibration.vibrate(duration: 40, amplitude: 128);
-      } else {
-        Vibration.vibrate(duration: 40);
-      }
+    if (_isIOS) {
+      await HapticFeedback.heavyImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
+      Vibration.vibrate(duration: 60, amplitude: 200); // Increased
+    } else if (_hasVibrator) {
+      Vibration.vibrate(duration: 60);
     } else {
-      HapticFeedback.heavyImpact();
+      await HapticFeedback.heavyImpact();
     }
   }
 
-  /// Selection click (e.g. scroll, picker)
-  /// Extremely short 5ms vibration
+  /// Selection click (e.g. scroll, picker, tab change)
   static Future<void> selection() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      // Even on low-end, 5ms feels like a "tick"
-      Vibration.vibrate(duration: 5);
+    if (_isIOS) {
+      await HapticFeedback.selectionClick();
+      return;
+    }
+    if (_hasCustomVibration) {
+      Vibration.vibrate(duration: 15, amplitude: 80); // More noticeable tick
+    } else if (_hasVibrator) {
+      Vibration.vibrate(duration: 15);
     } else {
-      HapticFeedback.selectionClick();
+      await HapticFeedback.selectionClick();
+    }
+  }
+
+  /// Swipe to dismiss / Slide actions
+  static Future<void> slide() async {
+    if (!_enabled) return;
+    if (_isIOS) {
+      await HapticFeedback.lightImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
+      Vibration.vibrate(duration: 20, amplitude: 70); // Crisp slide
+    } else if (_hasVibrator) {
+      Vibration.vibrate(duration: 20);
+    } else {
+      await HapticFeedback.lightImpact();
     }
   }
 
   /// Success pattern: Two quick light pulses
   static Future<void> success() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      // bump-bump pattern
+    if (_isIOS) {
+      await HapticFeedback.mediumImpact();
+      await Future.delayed(const Duration(milliseconds: 120));
+      await HapticFeedback.lightImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
       Vibration.vibrate(
-        pattern: [0, 10, 80, 10],
-        intensities: [0, 255, 0, 150],
+        pattern: [0, 25, 80, 30],
+        intensities: [0, 150, 0, 220],
       );
+    } else if (_hasVibrator) {
+      Vibration.vibrate(pattern: [0, 30, 80, 40]);
     } else {
       await HapticFeedback.mediumImpact();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 120));
       await HapticFeedback.lightImpact();
     }
   }
@@ -100,16 +131,22 @@ class Haptics {
   /// Error pattern: rapid double shake
   static Future<void> error() async {
     if (!_enabled) return;
-
-    if (await Vibration.hasVibrator()) {
-      // bzzz-bzzz pattern
+    if (_isIOS) {
+      await HapticFeedback.heavyImpact();
+      await Future.delayed(const Duration(milliseconds: 100));
+      await HapticFeedback.mediumImpact();
+      return;
+    }
+    if (_hasCustomVibration) {
       Vibration.vibrate(
-        pattern: [0, 30, 60, 30],
+        pattern: [0, 40, 60, 50],
         intensities: [0, 255, 0, 255],
       );
+    } else if (_hasVibrator) {
+      Vibration.vibrate(pattern: [0, 50, 60, 60]);
     } else {
       await HapticFeedback.heavyImpact();
-      await Future.delayed(const Duration(milliseconds: 80));
+      await Future.delayed(const Duration(milliseconds: 100));
       await HapticFeedback.mediumImpact();
     }
   }

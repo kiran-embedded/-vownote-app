@@ -110,14 +110,15 @@ class PdfGenerator {
     );
 
     final output = await getTemporaryDirectory();
-    final fileName = "VowNote_Report_${title.replaceAll(' ', '_')}.pdf";
+    final fileName = "BizLedger_Report_${title.replaceAll(' ', '_')}.pdf";
     final file = File("${output.path}/$fileName");
 
     // Save PDF without blocking too much if possible
     final bytes = await pdf.save();
     await file.writeAsBytes(bytes);
 
-    await Share.shareXFiles([XFile(file.path)], text: 'VowNote Report: $title');
+    // Fire and forget - don't await so the loading dialog can dismiss immediately
+    Share.shareXFiles([XFile(file.path)], text: 'BizLedger Report: $title');
   }
 
   static pw.Widget _buildHeader(
@@ -133,7 +134,7 @@ class PdfGenerator {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              'VOWNOTE',
+              tr(BusinessService().config.appTitle).toUpperCase(),
               style: pw.TextStyle(
                 fontSize: 24,
                 fontWeight: pw.FontWeight.bold,
@@ -163,7 +164,7 @@ class PdfGenerator {
               ),
             ),
             pw.Text(
-              DateFormat('dd MMM yyyy').format(DateTime.now()),
+              DateFormat('dd MMM yyyy', LocalizationService().currentLanguage).format(DateTime.now()),
               style: pw.TextStyle(
                 fontSize: 10,
                 color: PdfColors.grey,
@@ -190,12 +191,12 @@ class PdfGenerator {
 
     final headers = [
       if (showDiary) tr('diary_ref'),
-      if (showNames) config.customerLabel, // Dynamic Customer Label
-      if (config.showClientFields) config.client1Label, // Dynamic Client 1
-      if (config.showClientFields) config.client2Label, // Dynamic Client 2
+      if (showNames) tr(config.customerLabel),
+      if (config.showClientFields) tr(config.client1Label),
+      if (config.showClientFields) tr(config.client2Label),
       if (showPhone) tr('phone'),
       if (showAddress) tr('address'),
-      config.eventLabelSingular, // Dynamic Event Label
+      tr(config.eventLabelSingular),
       if (showMoney) tr('total'),
       if (showMoney) tr('adv_received'),
       if (showMoney) tr('due'),
@@ -218,7 +219,7 @@ class PdfGenerator {
         ];
       }).toList(),
       headerStyle: pw.TextStyle(
-        color: PdfColors.white,
+        color: PdfColors.black,
         fontSize: 9,
         font: font,
       ),
@@ -228,7 +229,7 @@ class PdfGenerator {
       cellAlignments: {
         for (var i = 0; i < headers.length; i++) i: pw.Alignment.center,
         if (showNames)
-          headers.indexOf(config.customerLabel): pw.Alignment.centerLeft,
+          headers.indexOf(tr(config.customerLabel)): pw.Alignment.centerLeft,
         if (showAddress)
           headers.indexOf(tr('address')): pw.Alignment.centerLeft,
         if (showMoney) headers.indexOf(tr('total')): pw.Alignment.centerRight,

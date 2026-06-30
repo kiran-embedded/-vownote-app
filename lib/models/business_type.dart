@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vownote/services/localization_service.dart';
 
 /// Business types supported by the application
 enum BusinessType { wedding, photography, catering, eventPlanning, general }
@@ -47,19 +48,19 @@ class BusinessConfig {
   factory BusinessConfig.fromType(BusinessType type) {
     switch (type) {
       case BusinessType.wedding:
-        return const BusinessConfig(
+        return BusinessConfig(
           type: BusinessType.wedding,
           displayName: 'Wedding Studio',
           appTitle: 'BizLedger',
           pdfTitle: 'Wedding Report',
           primaryIcon: Icons.favorite,
           eventIcon: Icons.calendar_today,
-          accentColor: Color(0xFFD4AF37), // Gold
+          accentColor: const Color(0xFFD4AF37), // Gold
           eventLabel: 'Wedding Dates',
           eventLabelSingular: 'Wedding Date',
-          client1Label: 'Bride',
-          client2Label: 'Groom',
-          customerLabel: 'Customer Name',
+          client1Label: tr('bride'),
+          client2Label: tr('groom'),
+          customerLabel: tr('customer'),
           showClientFields: true,
           showEventCategory: true,
           emptyStateMessage:
@@ -67,19 +68,19 @@ class BusinessConfig {
         );
 
       case BusinessType.photography:
-        return const BusinessConfig(
+        return BusinessConfig(
           type: BusinessType.photography,
           displayName: 'Photography Studio',
           appTitle: 'PhotoBook',
           pdfTitle: 'Photography Report',
           primaryIcon: Icons.camera_alt,
           eventIcon: Icons.photo_camera,
-          accentColor: Color(0xFF6366F1), // Indigo
+          accentColor: const Color(0xFF6366F1), // Indigo
           eventLabel: 'Session Dates',
           eventLabelSingular: 'Session Date',
-          client1Label: 'Client Name',
+          client1Label: tr('customer'),
           client2Label: 'Partner Name',
-          customerLabel: 'Client Name',
+          customerLabel: tr('customer'),
           showClientFields: false,
           showEventCategory: false,
           emptyStateMessage:
@@ -87,19 +88,19 @@ class BusinessConfig {
         );
 
       case BusinessType.catering:
-        return const BusinessConfig(
+        return BusinessConfig(
           type: BusinessType.catering,
           displayName: 'Catering Service',
           appTitle: 'CaterPro',
           pdfTitle: 'Catering Report',
           primaryIcon: Icons.restaurant,
           eventIcon: Icons.event,
-          accentColor: Color(0xFFEF4444), // Red
+          accentColor: const Color(0xFFEF4444), // Red
           eventLabel: 'Service Dates',
           eventLabelSingular: 'Service Date',
           client1Label: 'Contact Person',
           client2Label: 'Secondary Contact',
-          customerLabel: 'Client Name',
+          customerLabel: tr('customer'),
           showClientFields: false,
           showEventCategory: false,
           emptyStateMessage:
@@ -107,19 +108,19 @@ class BusinessConfig {
         );
 
       case BusinessType.eventPlanning:
-        return const BusinessConfig(
+        return BusinessConfig(
           type: BusinessType.eventPlanning,
           displayName: 'Event Planning',
           appTitle: 'EventMaster',
           pdfTitle: 'Event Report',
           primaryIcon: Icons.celebration,
           eventIcon: Icons.event_available,
-          accentColor: Color(0xFF8B5CF6), // Purple
+          accentColor: const Color(0xFF8B5CF6), // Purple
           eventLabel: 'Event Dates',
           eventLabelSingular: 'Event Date',
           client1Label: 'Organizer',
           client2Label: 'Co-Organizer',
-          customerLabel: 'Client Name',
+          customerLabel: tr('customer'),
           showClientFields: false,
           showEventCategory: false,
           emptyStateMessage:
@@ -127,19 +128,19 @@ class BusinessConfig {
         );
 
       case BusinessType.general:
-        return const BusinessConfig(
+        return BusinessConfig(
           type: BusinessType.general,
           displayName: 'General Business',
           appTitle: 'BookingPro',
           pdfTitle: 'Business Report',
           primaryIcon: Icons.business,
           eventIcon: Icons.event_note,
-          accentColor: Color(0xFF10B981), // Green
+          accentColor: const Color(0xFF10B981), // Green
           eventLabel: 'Service Dates',
           eventLabelSingular: 'Service Date',
-          client1Label: 'Client',
+          client1Label: tr('customer'),
           client2Label: 'Contact Person',
-          customerLabel: 'Customer Name',
+          customerLabel: tr('customer'),
           showClientFields: false,
           showEventCategory: false,
           emptyStateMessage:

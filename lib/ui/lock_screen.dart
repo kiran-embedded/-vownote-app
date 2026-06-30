@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:vownote/utils/display_engine.dart';
 import 'package:vownote/services/biometric_service.dart';
+import 'package:vownote/services/localization_service.dart';
 import 'package:vownote/utils/haptics.dart';
 
 /// Beautiful Material You lock screen with professional animations
@@ -103,7 +105,12 @@ class _LockScreenState extends State<LockScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-
+              AnimatedBuilder(
+                animation: LocalizationService(),
+                builder: (context, _) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
               // App Logo with pulse animation
               AnimatedBuilder(
                     animation: _pulseController,
@@ -152,7 +159,7 @@ class _LockScreenState extends State<LockScreen>
               // App Title
               Text(
                     'BizLedger',
-                    style: GoogleFonts.inter(
+                    style: DisplayEngine.font(
                       fontSize: 42,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -1,
@@ -172,8 +179,8 @@ class _LockScreenState extends State<LockScreen>
 
               // Lock Message
               Text(
-                'App Locked',
-                style: GoogleFonts.inter(
+                tr('app_locked') ?? 'App Locked',
+                style: DisplayEngine.font(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white70 : Colors.black54,
@@ -183,8 +190,8 @@ class _LockScreenState extends State<LockScreen>
               const SizedBox(height: 8),
 
               Text(
-                _isAuthenticating ? 'Authenticating...' : 'Unlock to continue',
-                style: GoogleFonts.inter(
+                _isAuthenticating ? tr('authenticating') ?? 'Authenticating...' : tr('unlock_continue') ?? 'Unlock to continue',
+                style: DisplayEngine.font(
                   fontSize: 14,
                   color: isDark ? Colors.white54 : Colors.black38,
                 ),
@@ -254,9 +261,9 @@ class _LockScreenState extends State<LockScreen>
                     ),
                     label: Text(
                       _isAuthenticating
-                          ? 'Authenticating...'
-                          : 'Tap to Unlock with $_biometricType',
-                      style: GoogleFonts.inter(
+                          ? tr('authenticating') ?? 'Authenticating...'
+                          : '${tr('tap_to_unlock')} $_biometricType',
+                      style: DisplayEngine.font(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -274,6 +281,10 @@ class _LockScreenState extends State<LockScreen>
                   .slideY(begin: 0.2, curve: Curves.easeOutCubic),
 
               const SizedBox(height: 60),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),

@@ -1,3 +1,5 @@
+import 'package:vownote/utils/display_engine.dart';
+import 'package:vownote/services/business_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:vownote/services/database_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:vownote/utils/pdf_generator.dart';
+import 'package:vownote/services/localization_service.dart';
 import 'package:vownote/services/localization_service.dart';
 import 'package:vownote/utils/haptics.dart';
 
@@ -49,15 +52,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
       if (b.eventDates.isNotEmpty) {
         final firstDate = List<DateTime>.from(b.eventDates)..sort();
-        final key = DateFormat('MMMM yyyy').format(firstDate.first);
+        final key = DateFormat('MMMM yyyy', LocalizationService().currentLanguage).format(firstDate.first);
         counts[key] = (counts[key] ?? 0) + 1;
       }
     }
 
     final sorted = counts.keys.toList()
       ..sort((a, b) {
-        final da = DateFormat('MMMM yyyy').parse(a);
-        final db = DateFormat('MMMM yyyy').parse(b);
+        final da = DateFormat('MMMM yyyy', LocalizationService().currentLanguage).parse(a);
+        final db = DateFormat('MMMM yyyy', LocalizationService().currentLanguage).parse(b);
         return da.compareTo(db);
       });
 
@@ -102,111 +105,117 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                surfaceTintColor: Colors.transparent,
-                pinned: true,
-                expandedHeight: 140,
-                flexibleSpace: FlexibleSpaceBar(
-                  centerTitle: false,
-                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                  title: Text(
-                    'Business Insights',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
-                      fontSize: 24,
+    return AnimatedBuilder(
+      animation: LocalizationService(),
+      builder: (context, child) {
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: Stack(
+            children: [
+              CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverAppBar(
+                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                    surfaceTintColor: Colors.transparent,
+                    pinned: true,
+                    expandedHeight: 140,
+                    flexibleSpace: FlexibleSpaceBar(
+                      centerTitle: false,
+                      titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                      title: Text(
+                        tr('business_insights'),
+                        style: DisplayEngine.font(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      IconButton(
+                        onPressed: _generateGlobalPdf,
+                        icon: const Icon(
+                          Icons.picture_as_pdf_outlined,
+                          color: Color(0xFFD4AF37),
+                        ),
+                        tooltip: tr('full_report'),
+                      ),
+                    ],
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _buildSummary(
+                          _totalRevenue,
+                          _totalCollected,
+                          _totalDue,
+                          _totalBookingsCount,
+                          isDark,
+                        ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1),
+                        const SizedBox(height: 32),
+                        Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    tr('monthly_performance'),
+                                    style: DisplayEngine.font(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: _generateGlobalPdf,
+                                    icon: const Icon(
+                                      Icons.print_outlined,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      tr('full_report'),
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFFD4AF37),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(delay: 200.ms, duration: 500.ms)
+                            .slideY(begin: 0.1),
+                        const SizedBox(height: 16),
+                      ]),
                     ),
                   ),
-                ),
-                actions: [
-                  IconButton(
-                    onPressed: _generateGlobalPdf,
-                    icon: const Icon(
-                      Icons.picture_as_pdf_outlined,
-                      color: Color(0xFFD4AF37),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final month = _sortedMonths[index];
+                        final count = _monthCounts[month] ?? 0;
+                        return _buildMonthTile(month, count, isDark)
+                            .animate()
+                            .fadeIn(delay: (index * 50).ms)
+                            .slideX(begin: 0.1);
+                      }, childCount: _sortedMonths.length),
                     ),
-                    tooltip: tr('full_report'),
                   ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 60)),
                 ],
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildSummary(
-                      _totalRevenue,
-                      _totalCollected,
-                      _totalDue,
-                      _totalBookingsCount,
-                      isDark,
-                    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1),
-                    const SizedBox(height: 32),
-                    Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Monthly Performance',
-                                style: GoogleFonts.inter(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark
-                                      ? Colors.white70
-                                      : Colors.black87,
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: _generateGlobalPdf,
-                                icon: const Icon(
-                                  Icons.print_outlined,
-                                  size: 16,
-                                ),
-                                label: Text(
-                                  tr('full_report'),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: const Color(0xFFD4AF37),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                        .animate()
-                        .fadeIn(delay: 200.ms, duration: 500.ms)
-                        .slideY(begin: 0.1),
-                    const SizedBox(height: 16),
-                  ]),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final month = _sortedMonths[index];
-                    final count = _monthCounts[month] ?? 0;
-                    return _buildMonthTile(month, count, isDark)
-                        .animate()
-                        .fadeIn(delay: (index * 50).ms)
-                        .slideX(begin: 0.1);
-                  }, childCount: _sortedMonths.length),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 60)),
+              if (_isGeneratingPdf) _buildPdfLoadingOverlay(),
             ],
           ),
-          if (_isGeneratingPdf) _buildPdfLoadingOverlay(),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -272,9 +281,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'TOTAL VALUATION',
+                tr('total_valuation'),
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.black.withOpacity(0.7),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
@@ -286,8 +295,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 children: [
                   Text(
                     '₹${NumberFormat.decimalPattern().format(rev)}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
+                    style: DisplayEngine.font(
+                      color: Colors.black,
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
                     ),
@@ -302,9 +311,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '$count Events',
+                      '$count ${tr('events_count')}',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -320,7 +329,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           children: [
             Expanded(
               child: _buildSecondaryPill(
-                'COLLECTED',
+                tr('collected').toUpperCase(),
                 '₹${NumberFormat.compact().format(coll)}',
                 isDark ? const Color(0xFF1C1C1E) : Colors.white,
                 Colors.green,
@@ -330,7 +339,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildSecondaryPill(
-                'OUTSTANDING',
+                tr('outstanding').toUpperCase(),
                 '₹${NumberFormat.compact().format(due)}',
                 isDark ? const Color(0xFF1C1C1E) : Colors.white,
                 isDark ? const Color(0xFFFF453A) : const Color(0xFFFF2D55),
@@ -385,7 +394,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           const SizedBox(height: 8),
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: DisplayEngine.font(
               color: isWarning
                   ? accent
                   : (isDark ? Colors.white : Colors.black),
@@ -427,7 +436,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             borderRadius: BorderRadius.circular(24),
           ),
           child: Text(
-            '$count Weddings',
+            '$count ${tr(BusinessService().config.eventLabelSingular)}',
             style: const TextStyle(
               color: Color(0xFFD4AF37),
               fontWeight: FontWeight.w800,

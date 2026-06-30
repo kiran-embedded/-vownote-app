@@ -226,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: Text(
                     _isSelectionMode
                         ? '${_selectedIds.length} Selected'
-                        : 'VowNote',
+                        : 'BizLedger',
                     style: TextStyle(
                       color: Theme.of(context).textTheme.displayLarge?.color,
                       fontWeight: FontWeight.bold,

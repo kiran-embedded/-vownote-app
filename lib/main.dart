@@ -10,12 +10,13 @@ import 'package:vownote/services/performance_service.dart';
 import 'package:vownote/services/business_service.dart';
 import 'package:vownote/ui/widgets/performance_overlay.dart';
 import 'package:flutter_refresh_rate_control/flutter_refresh_rate_control.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:vownote/utils/haptics.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:vownote/ui/auth_gate.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // Localization support
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Localization support
 import 'package:vownote/services/biometric_service.dart'; // Added Import
+import 'package:vownote/services/google_drive_service.dart';
 
 // Global access to theme service
 final ThemeService themeService = ThemeService();
@@ -31,6 +32,8 @@ void main() async {
   }
 
   await LocalizationService().init();
+  GoogleDriveService().init(); // Run silently in background to optimize app startup speed
+  await initializeDateFormatting();
   await PerformanceService().init();
   await BusinessService().init(); // Initialize business service
   await Haptics.init(); // Initialize enhanced haptics
@@ -108,96 +111,65 @@ class _BizLedgerAppState extends State<BizLedgerApp>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: themeService,
+      animation: Listenable.merge([themeService, LocalizationService()]),
       builder: (context, _) {
         return MaterialApp(
           title: 'BizLedger',
           debugShowCheckedModeBanner: false,
-          themeAnimationDuration: const Duration(
-            milliseconds: 300,
-          ), // Optimized from 800ms
-          themeAnimationCurve: Curves.easeInOutQuart, // Snappier curve
-          themeMode: themeService.themeMode,
-          // Material You Dynamic Color Builder
-          builder: (context, child) {
-            return DynamicColorBuilder(
-              builder: (lightDynamic, darkDynamic) {
-                // Use dynamic colors if enabled and available
-                final useDynamic = themeService.useDynamicColors;
-                ThemeData lightTheme;
-                ThemeData darkTheme;
-
-                if (useDynamic && lightDynamic != null && darkDynamic != null) {
-                  lightTheme = AppTheme.createDynamicLightTheme(lightDynamic);
-                  darkTheme = AppTheme.createDynamicDarkTheme(darkDynamic);
-                } else {
-                  // Fallback to static themes
-                  lightTheme = AppTheme.lightTheme;
-                  darkTheme = AppTheme.darkTheme;
-                }
-
-                return MaterialApp(
-                  title: 'BizLedger',
-                  debugShowCheckedModeBanner: false,
-                  themeAnimationDuration: const Duration(milliseconds: 300),
-                  themeAnimationCurve: Curves.easeInOutQuart,
-                  theme: lightTheme.copyWith(
-                    pageTransitionsTheme: const PageTransitionsTheme(
-                      builders: {
-                        TargetPlatform.android:
-                            CupertinoPageTransitionsBuilder(),
-                        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                      },
-                    ),
-                  ),
-                  darkTheme: darkTheme.copyWith(
-                    pageTransitionsTheme: const PageTransitionsTheme(
-                      builders: {
-                        TargetPlatform.android:
-                            CupertinoPageTransitionsBuilder(),
-                        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                      },
-                    ),
-                  ),
-                  themeMode: themeService.themeMode,
-                  home: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: KeyedSubtree(
-                      key: ValueKey(LocalizationService().currentLanguage),
-                      child: const AuthGate(
-                        child: HomeScreen(),
-                      ), // Protected by AuthGate
-                    ),
-                  ),
-                  localizationsDelegates: const [
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  supportedLocales: const [
-                    Locale('en'),
-                    Locale('ml'),
-                    Locale('hi'),
-                    Locale('ta'),
-                    Locale('es'),
-                    Locale('fr'),
-                    Locale('ar'),
-                    Locale('de'),
-                    Locale('id'),
-                    Locale('pt'),
-                  ],
-                  builder: (context, widget) {
-                    return GestureDetector(
-                      onTap: () {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
-                      child: GlobalPerformanceOverlay(child: widget!),
-                    );
-                  },
-                );
+          themeAnimationDuration: const Duration(milliseconds: 300),
+          themeAnimationCurve: Curves.easeInOutQuart,
+          theme: AppTheme.lightTheme.copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
               },
+            ),
+          ),
+          darkTheme: AppTheme.darkTheme.copyWith(
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
+          ),
+          themeMode: themeService.themeMode,
+          locale: Locale(LocalizationService().currentLanguage),
+          home: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: KeyedSubtree(
+              key: ValueKey(LocalizationService().currentLanguage),
+              child: const AuthGate(
+                child: HomeScreen(),
+              ), // Protected by AuthGate
+            ),
+          ),
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ml'),
+            Locale('hi'),
+            Locale('ta'),
+            Locale('es'),
+            Locale('fr'),
+            Locale('ar'),
+            Locale('de'),
+            Locale('id'),
+            Locale('pt'),
+          ],
+          builder: (context, widget) {
+            return GestureDetector(
+              onTap: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+              child: GlobalPerformanceOverlay(child: widget!),
             );
           },
         );

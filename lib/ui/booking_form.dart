@@ -7,6 +7,7 @@ import 'package:vownote/models/booking.dart';
 import 'package:vownote/services/database_service.dart';
 import 'package:vownote/services/notification_service.dart';
 import 'package:vownote/utils/haptics.dart';
+import 'package:vownote/services/localization_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:vownote/services/localization_service.dart';
 import 'package:vownote/services/snapshot_service.dart';
@@ -137,9 +138,9 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
       if (_selectedDates.isEmpty) {
         Haptics.medium();
         if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select wedding dates')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(tr('select_wedding_dates'))));
         return;
       }
 
@@ -184,14 +185,19 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             _isSaving = false;
           });
           Haptics.success();
-          await Future.delayed(const Duration(milliseconds: 2000));
-          Navigator.pop(context, booking);
+          await Future.delayed(const Duration(milliseconds: 950));
+          if (mounted) {
+            Navigator.pop(context, booking);
+          }
         }
       } catch (e) {
         Haptics.medium();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('${tr('error')}: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } finally {
@@ -232,8 +238,8 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'VowNote',
+              Text(
+                tr(BusinessService().config.appTitle),
                 style: TextStyle(
                   color: Color(0xFFD4AF37),
                   fontWeight: FontWeight.bold,
@@ -253,7 +259,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                   child: Text(
                     booking.displayIdentity,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -272,13 +278,13 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
           const Divider(),
           _buildShareInfo(
             Icons.calendar_today,
-            BusinessService().config.eventLabel,
+            tr(BusinessService().config.eventLabel),
             booking.eventDates
-                .map((d) => DateFormat('MMM d, yyyy').format(d))
+                .map((d) => DateFormat('MMM d, yyyy', LocalizationService().currentLanguage).format(d))
                 .join('\n'),
           ),
           if (booking.phoneNumber.isNotEmpty)
-            _buildShareInfo(Icons.phone, 'Phone', booking.phoneNumber),
+            _buildShareInfo(Icons.phone, tr('phone'), booking.phoneNumber),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
@@ -288,15 +294,19 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             ),
             child: Column(
               children: [
-                _buildShareFinance('Total', booking.totalAmount, Colors.black),
                 _buildShareFinance(
-                  'Advance Paid',
+                  tr('total'),
+                  booking.totalAmount,
+                  Colors.black,
+                ),
+                _buildShareFinance(
+                  tr('advance_paid'),
                   booking.advanceReceived,
                   Colors.orange,
                 ),
                 const Divider(),
                 _buildShareFinance(
-                  'Pending',
+                  tr('pending'),
                   booking.pendingAmount,
                   Colors.red,
                   isBold: true,
@@ -310,7 +320,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
 
     await SnapshotService().captureAndShare(
       shareWidget,
-      fileName: 'VowNote_Booking_${booking.customerName}',
+      fileName: 'BizLedger_Booking_${booking.customerName}',
     );
   }
 
@@ -376,276 +386,290 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
   @override
   Widget build(BuildContext context) {
     DisplayEngine.init(context);
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          _isSuccess
-              ? 'Saved!'
-              : (widget.booking == null ? 'New Booking' : 'Edit Booking'),
-        ),
-        backgroundColor: Colors.transparent,
-        actions: [
-          if (widget.booking != null)
-            IconButton(
-              icon: const Icon(Icons.share_outlined, color: Color(0xFFD4AF37)),
-              onPressed: _shareAsImage,
+    return AnimatedBuilder(
+      animation: LocalizationService(),
+      builder: (context, child) {
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text(
+              _isSuccess
+                  ? 'Saved!'
+                  : (widget.booking == null
+                        ? tr('new_booking')
+                        : tr('edit_booking')),
             ),
-          _isSaving
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: CupertinoActivityIndicator(),
-                )
-              : GestureDetector(
-                  onTapDown: (_) => Haptics.light(),
-                  onTap: _saveBooking,
-                  child:
-                      Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: Text(
-                              tr('done').toUpperCase(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFD4AF37),
+            backgroundColor: Colors.transparent,
+            actions: [
+              if (widget.booking != null)
+                IconButton(
+                  icon: const Icon(
+                    Icons.share_outlined,
+                    color: Color(0xFFD4AF37),
+                  ),
+                  onPressed: () {
+                    Haptics.selection();
+                    _shareAsImage();
+                  },
+                ),
+              _isSaving
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: CupertinoActivityIndicator(),
+                    )
+                  : GestureDetector(
+                      onTapDown: (_) => Haptics.light(),
+                      onTap: () {
+                        Haptics.medium();
+                        _saveBooking();
+                      },
+                      child:
+                          Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  tr('done').toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFD4AF37),
+                                  ),
+                                ),
+                              )
+                              .animate(onPlay: (c) => c.stop())
+                              .scale(
+                                begin: const Offset(1, 1),
+                                end: const Offset(0.9, 0.9),
+                                duration: 100.ms,
+                              ),
+                    ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Form(
+                key: _formKey,
+                child: ListView(
+                  cacheExtent: 1000,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  children:
+                      [
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle(tr('diary_mgmt')),
+                                  _buildSection([
+                                    if (BusinessService()
+                                        .config
+                                        .showEventCategory) ...[
+                                      _buildCategorySelector(),
+                                      const Divider(height: 1, indent: 50),
+                                    ],
+                                    _buildTextField(
+                                      _diaryCodeController,
+                                      tr('diary_code'),
+                                      Icons.auto_stories_outlined,
+                                    ),
+                                  ]),
+                                ],
                               ),
                             ),
-                          )
-                          .animate(onPlay: (c) => c.stop())
-                          .scale(
-                            begin: const Offset(1, 1),
-                            end: const Offset(0.9, 0.9),
-                            duration: 100.ms,
+                            const SizedBox(height: 16),
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle('customer_information'),
+                                  _buildSection([
+                                    _buildTextField(
+                                      _customerNameController,
+                                      tr('customer'),
+                                      Icons.badge_outlined,
+                                      required: true,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    // Business-specific client fields
+                                    if (BusinessService()
+                                        .config
+                                        .showClientFields) ...[
+                                      _buildTextField(
+                                        _brideNameController,
+                                        tr(BusinessService().config.client1Label),
+                                        Icons.person_outline,
+                                      ),
+                                      const Divider(height: 1, indent: 50),
+                                      _buildTextField(
+                                        _groomNameController,
+                                        tr(BusinessService().config.client2Label),
+                                        Icons.person,
+                                      ),
+                                    ],
+                                  ]),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle(
+                                    tr(BusinessService().config.eventLabel),
+                                  ),
+                                  _buildDatesSection(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle('finance_details'),
+                                  _buildSection([
+                                    _buildTextField(
+                                      _totalAmountController,
+                                      tr('total'),
+                                      Icons.currency_rupee,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    _buildTextField(
+                                      _totalAdvanceController,
+                                      tr('total_adv'),
+                                      Icons.payments_outlined,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    _buildTextField(
+                                      _advReceivedController,
+                                      tr('adv_received'),
+                                      Icons.check_circle_outline,
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    _buildPendingTile(
+                                      tr('due'),
+                                      _pendingAmount,
+                                      Colors.red,
+                                    ),
+                                  ]),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle(tr('contact_details')),
+                                  _buildSection([
+                                    _buildTextField(
+                                      _phoneController,
+                                      tr('phone'),
+                                      Icons.phone,
+                                      keyboardType: TextInputType.phone,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    _buildTextField(
+                                      _altPhoneController,
+                                      tr('alt_phone'),
+                                      Icons.phone_android_outlined,
+                                      keyboardType: TextInputType.phone,
+                                    ),
+                                    const Divider(height: 1, indent: 50),
+                                    _buildTextField(
+                                      _addressController,
+                                      tr('address'),
+                                      Icons.location_on_outlined,
+                                      maxLines: 2,
+                                    ),
+                                  ]),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            RepaintBoundary(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildSectionTitle(tr('notes')),
+                                  _buildSection([
+                                    _buildTextField(
+                                      _notesController,
+                                      tr('internal_notes'),
+                                      Icons.notes,
+                                      maxLines: 4,
+                                    ),
+                                  ]),
+                                ],
+                              ),
+                            ),
+                          ]
+                          .animate(interval: 50.ms)
+                          .fadeIn(duration: 400.ms)
+                          .move(
+                            begin: const Offset(0, 10),
+                            duration: 400.ms,
+                            curve: Curves.easeOut,
                           ),
                 ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Form(
-            key: _formKey,
-            child: ListView(
-              cacheExtent: 1000,
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              children:
-                  [
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle(tr('diary_mgmt')),
-                              _buildSection([
-                                if (BusinessService()
-                                    .config
-                                    .showEventCategory) ...[
-                                  _buildCategorySelector(),
-                                  const Divider(height: 1, indent: 50),
-                                ],
-                                _buildTextField(
-                                  _diaryCodeController,
-                                  tr('diary_code'),
-                                  Icons.auto_stories_outlined,
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle('Customer Information'),
-                              _buildSection([
-                                _buildTextField(
-                                  _customerNameController,
-                                  tr('customer'),
-                                  Icons.badge_outlined,
-                                  required: true,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                // Business-specific client fields
-                                if (BusinessService()
-                                    .config
-                                    .showClientFields) ...[
-                                  _buildTextField(
-                                    _brideNameController,
-                                    BusinessService().config.client1Label,
-                                    Icons.person_outline,
-                                  ),
-                                  const Divider(height: 1, indent: 50),
-                                  _buildTextField(
-                                    _groomNameController,
-                                    BusinessService().config.client2Label,
-                                    Icons.person,
-                                  ),
-                                ],
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle(
-                                BusinessService().config.eventLabel,
-                              ),
-                              _buildDatesSection(),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle('Finance details (₹)'),
-                              _buildSection([
-                                _buildTextField(
-                                  _totalAmountController,
-                                  tr('total'),
-                                  Icons.currency_rupee,
-                                  keyboardType: TextInputType.number,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                _buildTextField(
-                                  _totalAdvanceController,
-                                  tr('total_adv'),
-                                  Icons.payments_outlined,
-                                  keyboardType: TextInputType.number,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                _buildTextField(
-                                  _advReceivedController,
-                                  tr('adv_received'),
-                                  Icons.check_circle_outline,
-                                  keyboardType: TextInputType.number,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                _buildPendingTile(
-                                  tr('due'),
-                                  _pendingAmount,
-                                  Colors.red,
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle('Contact details'),
-                              _buildSection([
-                                _buildTextField(
-                                  _phoneController,
-                                  tr('phone'),
-                                  Icons.phone,
-                                  keyboardType: TextInputType.phone,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                _buildTextField(
-                                  _altPhoneController,
-                                  tr('alt_phone'),
-                                  Icons.phone_android_outlined,
-                                  keyboardType: TextInputType.phone,
-                                ),
-                                const Divider(height: 1, indent: 50),
-                                _buildTextField(
-                                  _addressController,
-                                  tr('address'),
-                                  Icons.location_on_outlined,
-                                  maxLines: 2,
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        RepaintBoundary(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle(tr('notes')),
-                              _buildSection([
-                                _buildTextField(
-                                  _notesController,
-                                  'Internal notes...',
-                                  Icons.notes,
-                                  maxLines: 4,
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
-                      ]
-                      .animate(interval: 50.ms)
-                      .fadeIn(duration: 400.ms)
-                      .move(
-                        begin: const Offset(0, 10),
-                        duration: 400.ms,
-                        curve: Curves.easeOut,
-                      ),
-            ),
+              if (_isSuccess) _buildSuccessAnimation(),
+            ],
           ),
-          if (_isSuccess) _buildSuccessAnimation(),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildSuccessAnimation() {
     return Container(
-      color: Colors.black.withOpacity(0.1),
+      color: Colors.black.withOpacity(0.15),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-                  padding: const EdgeInsets.all(30),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD4AF37),
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: const Color(0xFFD4AF37).withOpacity(0.4),
-                        blurRadius: 30,
-                        spreadRadius: 10,
+                        blurRadius: 20,
+                        spreadRadius: 5,
                       ),
                     ],
                   ),
                   child: const Icon(
                     CupertinoIcons.checkmark_alt,
                     color: Colors.white,
-                    size: 80,
+                    size: 64,
                   ),
                 )
-                .animate(
-                  onPlay: (controller) => controller.repeat(reverse: true),
-                )
+                .animate()
                 .scale(
-                  duration: 1000.ms,
-                  begin: const Offset(1.0, 1.0),
-                  end: const Offset(1.1, 1.1),
-                  curve: Curves.easeInOutBack,
+                  duration: 350.ms,
+                  begin: const Offset(0.0, 0.0),
+                  end: const Offset(1.0, 1.0),
+                  curve: Curves.elasticOut,
                 )
                 .shimmer(
-                  delay: 500.ms,
-                  duration: 1500.ms,
-                  color: Colors.white24,
+                  delay: 150.ms,
+                  duration: 500.ms,
+                  color: Colors.white54,
                 ),
             const SizedBox(height: 24),
             Text(
-                  'Saved Successfully',
-                  style: GoogleFonts.outfit(
+                  tr('saved_successfully'),
+                  style: DisplayEngine.outfit(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFFD4AF37),
@@ -653,7 +677,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                   ),
                 )
                 .animate()
-                .fadeIn(duration: 600.ms)
+                .fadeIn(duration: 400.ms)
                 .scale(
                   begin: const Offset(0.8, 0.8),
                   curve: Curves.easeOutBack,
@@ -661,14 +685,14 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    ).animate().fadeIn(duration: 200.ms);
   }
 
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
       child: Text(
-        title.toUpperCase(),
+        tr(title).toUpperCase(),
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,
@@ -704,7 +728,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         keyboardType: keyboardType,
         maxLines: maxLines,
         validator: required
-            ? (v) => (v == null || v.isEmpty) ? 'Required' : null
+            ? (v) => (v == null || v.isEmpty) ? tr('required') : null
             : null,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: const Color(0xFFD4AF37), size: 18),
@@ -743,14 +767,16 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                 value: 'Female',
                 label: Text(tr('female'), style: const TextStyle(fontSize: 10)),
               ),
-              const ButtonSegment(
+              ButtonSegment(
                 value: 'None',
-                label: Text('N/A', style: TextStyle(fontSize: 10)),
+                label: Text(tr('not_applicable'), style: const TextStyle(fontSize: 10)),
               ),
             ],
             selected: {_selectedCategory},
-            onSelectionChanged: (v) =>
-                setState(() => _selectedCategory = v.first),
+            onSelectionChanged: (v) {
+              Haptics.selection();
+              setState(() => _selectedCategory = v.first);
+            },
             showSelectedIcon: false,
             style: const ButtonStyle(
               visualDensity: VisualDensity.compact,
@@ -774,16 +800,18 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             (date) => Column(
               children: [
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.calendar_today,
-                    color: Colors.amber,
+                    color: Theme.of(context).primaryColor,
                     size: 20,
                   ),
-                  title: Text(DateFormat('MMMM d, yyyy').format(date)),
+                  title: Text(DateFormat('MMMM d, yyyy', LocalizationService().currentLanguage).format(date)),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, size: 18),
-                    onPressed: () =>
-                        setState(() => _selectedDates.remove(date)),
+                    onPressed: () {
+                      Haptics.light();
+                      setState(() => _selectedDates.remove(date));
+                    },
                   ),
                 ),
                 if (date != _selectedDates.last)
@@ -796,14 +824,17 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
               Icons.add_circle_outline,
               color: Color(0xFFD4AF37),
             ),
-            title: const Text(
-              'Add Date',
-              style: TextStyle(
+            title: Text(
+              tr('add_date'),
+              style: const TextStyle(
                 color: Color(0xFFD4AF37),
                 fontWeight: FontWeight.w500,
               ),
             ),
-            onTap: () => _selectDates(context),
+            onTap: () {
+              Haptics.selection();
+              _selectDates(context);
+            },
           ),
         ],
       ),
@@ -813,7 +844,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
   Widget _buildPendingTile(String label, double amount, Color color) {
     return ListTile(
       leading: Icon(Icons.pending_actions, color: color.withOpacity(0.8)),
-      title: Text(label, style: const TextStyle(fontSize: 13)),
+      title: Text(tr(label), style: const TextStyle(fontSize: 13)),
       trailing: Text(
         '₹${amount.toStringAsFixed(0)}',
         style: TextStyle(

@@ -15,7 +15,7 @@ class SnapshotService {
 
   Future<void> captureAndShare(
     Widget widget, {
-    String fileName = 'VowNote_Share',
+    String fileName = 'BizLedger_Share',
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final use4K = prefs.getBool('use_4k_screenshots') ?? true;
@@ -37,7 +37,7 @@ class SnapshotService {
 
       await Share.shareXFiles([
         XFile(imagePath.path),
-      ], text: 'Shared from VowNote Professional');
+      ], text: 'Shared from BizLedger Professional');
     } catch (e) {
       debugPrint('Snapshot Error: $e');
     }
