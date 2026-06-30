@@ -16,6 +16,51 @@
 
 ---
 
+## 📱 App Screenshots
+
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/01_home.jpeg" width="220" alt="Home — Booking List"/>
+      <br/>
+      <sub><b>🏠 Home · Booking List</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/02_insights.jpeg" width="220" alt="Business Insights"/>
+      <br/>
+      <sub><b>📊 Business Insights</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/03_settings_top.jpeg" width="220" alt="Settings — Top"/>
+      <br/>
+      <sub><b>⚙️ Settings · App Lock & Dark Mode</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/04_settings_backup.jpeg" width="220" alt="Settings — Backup & Sync"/>
+      <br/>
+      <sub><b>☁️ Settings · Backup & Sync + GDrive ⚠️</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/05_booking_edit.jpeg" width="220" alt="Edit Booking Form"/>
+      <br/>
+      <sub><b>✏️ Edit Booking · Client Details</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/06_booking_form.jpeg" width="220" alt="New Booking · Finance & Contact"/>
+      <br/>
+      <sub><b>💰 New Booking · Finance & Notes</b></sub>
+    </td>
+  </tr>
+</table>
+
+</div>
+
+---
+
 # ⚡ Executive Technical Summary
 
 **BizLedger (v2.3.2)** is a major leap forward from v2.3.1, introducing **Google Drive Cloud Sync**, a fully rewritten **Premium Haptic Engine**, **SQL-Based Local Backup**, a redesigned **Settings UI**, an upgraded **Help Center**, and critical stability fixes. This release transforms BizLedger from a polished local ledger into a cloud-synchronized, tactile-first business management system.
