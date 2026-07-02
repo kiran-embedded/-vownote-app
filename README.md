@@ -12,12 +12,12 @@ Below is a direct comparison showing the design evolution from the legacy dashbo
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/screenshots/old_dashboard.jpeg" width="240" alt="Old Dashboard Layout"/>
+      <img src="docs/screenshots/old_dashboard_v2.jpeg" width="240" alt="Old Dashboard Layout"/>
       <br/>
       <sub><b>❌ Legacy UI (v2.3.2)</b><br/>Navigation driven by top icons inside SliverAppBar; float button layout.</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/screenshots/home_dashboard.jpeg" width="240" alt="New Dashboard Layout"/>
+      <img src="docs/screenshots/home_dashboard_v2.jpeg" width="240" alt="New Dashboard Layout"/>
       <br/>
       <sub><b>✅ New UI (v2.3.4)</b><br/>Custom stateful Bottom Navigation Bar; top filter pills; dynamic name greetings.</sub>
     </td>
@@ -35,7 +35,7 @@ Below is a direct comparison showing the design evolution from the legacy dashbo
 <table>
   <tr>
     <td align="center" width="25%">
-      <img src="docs/screenshots/home_dashboard.jpeg" width="180" alt="Home Dashboard"/>
+      <img src="docs/screenshots/home_dashboard_v2.jpeg" width="180" alt="Home Dashboard"/>
       <br/><sub><b>🏠 Home Dashboard</b></sub>
     </td>
     <td align="center" width="25%">
