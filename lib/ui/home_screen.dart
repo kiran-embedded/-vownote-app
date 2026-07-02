@@ -395,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final config = BusinessService().config;
     final greeting = _getGreeting();
-    final userName = GoogleDriveService().currentUser?.displayName ?? 'Kiran';
+    final userName = GoogleDriveService().currentUser?.displayName ?? 'Guest';
 
     // Calculate dynamic stats
     final activeBookingsCount = _allBookings.where((b) => !b.isClosed).length;
