@@ -37,7 +37,7 @@ class SnapshotService {
 
       await Share.shareXFiles([
         XFile(imagePath.path),
-      ], text: 'Shared from BizLedger Professional');
+      ], text: 'Shared from BizLedger');
     } catch (e) {
       debugPrint('Snapshot Error: $e');
     }

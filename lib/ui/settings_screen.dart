@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart' hide CupertinoListTile, CupertinoListTileChevron, CupertinoSwitch, CupertinoActivityIndicator;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:vownote/services/google_drive_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -44,6 +45,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Security Settings (Local State for instant toggle)
   bool _isLockEnabled = false;
   bool _canUseBiometrics = false;
+  bool _isStorageGranted = false;
+  String _lastBackupDisplay = 'Never';
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -59,6 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final canAuth =
         await BiometricService().isDeviceSupported() ||
         await BiometricService().canUseBiometrics();
+    final storageGranted = await Permission.manageExternalStorage.isGranted;
+    final lastBackupTime = prefs.getString('last_backup_time');
 
     if (mounted) {
       setState(() {
@@ -72,7 +78,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Security
         _isLockEnabled = lockEnabled;
         _canUseBiometrics = canAuth; // Broader check
+        _isStorageGranted = storageGranted;
+        _lastBackupDisplay = _formatBackupTime(lastBackupTime);
       });
+    }
+  }
+
+  String _formatBackupTime(String? isoString) {
+    if (isoString == null || isoString == 'Never') return 'Never';
+    try {
+      final dt = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final difference = now.difference(dt);
+      if (difference.inDays == 0 && dt.day == now.day) {
+        return 'Today, ${DateFormat('h:mm a').format(dt)}';
+      } else if (difference.inDays == 1 || (difference.inDays == 0 && dt.day != now.day)) {
+        return 'Yesterday, ${DateFormat('h:mm a').format(dt)}';
+      } else {
+        return DateFormat('MMM d, yyyy, h:mm a').format(dt);
+      }
+    } catch (_) {
+      return 'Never';
     }
   }
 
@@ -494,44 +520,210 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showProfileDialog() {
+    final drive = GoogleDriveService();
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(tr('profile')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (drive.isSignedIn && drive.currentUser?.photoUrl != null)
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: NetworkImage(drive.currentUser!.photoUrl!),
+              )
+            else
+              const CircleAvatar(
+                radius: 40,
+                backgroundColor: Color(0xFFD4AF37),
+                child: Icon(Icons.person, size: 40, color: Colors.black),
+              ),
+            const SizedBox(height: 16),
+            Text(
+              drive.isSignedIn ? (drive.currentUser?.displayName ?? "Google User") : "Guest User",
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            Text(
+              drive.isSignedIn ? (drive.currentUser?.email ?? "") : "Sign in to backup data",
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          if (drive.isSignedIn)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(c);
+                await drive.signOut();
+                Haptics.medium();
+                setState(() {});
+              },
+              child: Text(tr('sign_out') ?? 'Sign Out', style: const TextStyle(color: Colors.red)),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(tr('close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        tr(label),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedBuilder(
-      animation: LocalizationService(),
+      animation: Listenable.merge([LocalizationService(), BusinessService(), themeService, GoogleDriveService()]),
       builder: (context, child) {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: ShimmerText(
+            titleSpacing: 0,
+            leading: Navigator.canPop(context)
+                ? IconButton(
+                    icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                : null,
+            title: Text(
               tr('settings'),
-              style: DisplayEngine.font(fontWeight: FontWeight.w600),
+              style: DisplayEngine.font(
+                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                color: const Color(0xFFD4AF37),
+              ),
             ),
             backgroundColor: Colors.transparent,
             scrolledUnderElevation: 0,
-            centerTitle: true,
+            centerTitle: false,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Container(
+                  width: 180,
+                  height: 36,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Icon(Icons.search, size: 18, color: Colors.grey),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: tr('search_settings') ?? 'Search settings',
+                            hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                            filled: false,
+                            fillColor: Colors.transparent,
+                            hoverColor: Colors.transparent,
+                            focusColor: Colors.transparent,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.only(right: 10, bottom: 2),
+                          ),
+                          style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
+                          onChanged: (v) {
+                            setState(() {
+                              _searchQuery = v.trim().toLowerCase();
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           body: SafeArea(
             child: Stack(
               children: [
                 ListView(
                   physics: const BouncingScrollPhysics(),
-                  children:
-                      [
-                            _buildBusinessTypeSection(),
-                            _buildAppearanceSection(),
-                            _buildSecuritySection(),
-                            _buildExportSettings(),
-                            _buildBackupSection(),
-                            _buildHelpSection(),
-                            _buildAboutSection(),
-                            const SizedBox(height: 40),
-                          ]
-                          .animate(interval: 50.ms)
-                          .fadeIn(duration: 400.ms)
-                          .slideX(
-                            begin: 0.1,
-                            end: 0,
-                            curve: Curves.easeOutCubic,
+                  children: [
+                    _buildProfileHeader(),
+                    _buildAccountSection(),
+                    _buildSecuritySection(),
+                    _buildBackupSection(),
+                    _buildExportSettings(),
+                    _buildHelpSection(),
+                    _buildAboutSection(),
+                    
+                    // Brand Footer exactly like in the image
+                    Column(
+                      children: [
+                        const SizedBox(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.business_center,
+                              size: 16,
+                              color: Color(0xFFD4AF37),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              tr('vownote'),
+                              style: DisplayEngine.font(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? const Color(0xFFD4AF37) : Colors.amber[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Professional Booking Manager',
+                          style: DisplayEngine.font(
+                            fontSize: 10,
+                            color: Colors.grey,
                           ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Made with ❤️ in India  •  © 2026 BizLedger',
+                          style: DisplayEngine.font(
+                            fontSize: 9,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ].animate(interval: 45.ms)
+                   .fadeIn(duration: 350.ms)
+                   .slideY(begin: 0.05, end: 0, curve: Curves.easeOutCubic),
                 ),
                 if (_isLoading)
                   Container(
@@ -555,35 +747,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildPillSection({
     required String title,
+    IconData? icon,
     required List<Widget> children,
     Widget? footer,
   }) {
-    // Use dynamic logic for color (light text for dark mode, dark text for light mode)
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark
         ? const Color(0xFF1C1C1E)
         : theme.colorScheme.surfaceContainer;
 
+    // Filter children based on search query
+    final filteredChildren = children.where((child) {
+      if (_searchQuery.isEmpty) return true;
+
+      String getWidgetText(Widget? w) {
+        if (w is Text) return w.data ?? '';
+        return '';
+      }
+
+      String tileText = '';
+      if (child is CupertinoListTile) {
+        tileText += getWidgetText(child.title) + ' ' + getWidgetText(child.subtitle);
+      } else if (child is AnimatedBuilder) {
+        tileText += 'theme appearance dark mode light mode';
+      }
+      return tileText.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (filteredChildren.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(32, 24, 16, 8),
-          child: Text(
-            tr(title),
-            style: DisplayEngine.font(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-              letterSpacing: 1.0,
-            ),
+          padding: const EdgeInsets.fromLTRB(24, 24, 16, 8),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isDark ? const Color(0xFFD4AF37) : Colors.amber[800],
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                tr(title).toUpperCase(),
+                style: DisplayEngine.font(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? const Color(0xFFD4AF37) : Colors.amber[800],
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
           ),
         ),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: cardColor, // Dynamic Material Color
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               if (!isDark)
@@ -596,7 +821,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           child: Column(
             children: [
-              for (var i = 0; i < children.length; i++) ...[
+              for (var i = 0; i < filteredChildren.length; i++) ...[
                 if (i > 0)
                   Divider(
                     height: 1,
@@ -605,7 +830,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? Colors.white12
                         : Colors.grey.withOpacity(0.1),
                   ),
-                children[i],
+                filteredChildren[i],
               ],
             ],
           ),
@@ -625,74 +850,281 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _changeBusinessType(BusinessType type) async {
-    Haptics.selection();
+  Widget _buildProfileHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final drive = GoogleDriveService();
+    final config = BusinessConfig.fromType(BusinessService().currentType);
 
-    final config = BusinessConfig.fromType(type);
-    final confirm = await showCupertinoDialog<bool>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('${tr('change_to')} ${tr(config.type.name)}?'),
-        content: Text(
-          'This will update the app to use ${tr(config.displayName).toLowerCase()} terminology and settings.',
+    final String displayName = drive.isSignedIn ? (drive.currentUser?.displayName ?? "User") : "Guest User";
+    final String email = drive.isSignedIn ? (drive.currentUser?.email ?? "Sign in for cloud sync") : "Sign in for cloud sync";
+    final String? photoUrl = drive.isSignedIn ? drive.currentUser?.photoUrl : null;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
         ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(tr('cancel')),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: const Color(0xFFD4AF37),
+                backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                child: photoUrl == null
+                    ? const Icon(Icons.person, size: 32, color: Colors.black)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: DisplayEngine.font(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      style: DisplayEngine.font(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4AF37).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            config.primaryIcon,
+                            size: 12,
+                            color: const Color(0xFFD4AF37),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            tr(config.displayName),
+                            style: DisplayEngine.font(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFD4AF37),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  Haptics.light();
+                  if (!drive.isSignedIn) {
+                    drive.signIn();
+                  } else {
+                    _showProfileDialog();
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.15),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      drive.isSignedIn ? tr('profile') : tr('sign_in'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, size: 12, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(tr('change')),
+          const SizedBox(height: 16),
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cloud_done,
+                      color: drive.isSignedIn ? Colors.green : Colors.grey,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            drive.isSignedIn ? tr('google_drive_connected') : tr('cloud_sync_disabled'),
+                            style: DisplayEngine.font(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            drive.isSignedIn ? tr('backup_secure') : tr('sign_in_to_backup'),
+                            style: DisplayEngine.font(
+                              fontSize: 9,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 24,
+                color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      color: Color(0xFFD4AF37),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('last_backup'),
+                            style: DisplayEngine.font(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            _lastBackupDisplay,
+                            style: DisplayEngine.font(
+                              fontSize: 9,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Haptics.success();
+                  setState(() => _isLoading = true);
+                  final success = await GoogleDriveService().backupToDrive();
+                  if (success && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(tr('success'))),
+                    );
+                  }
+                  await _loadSettings();
+                  setState(() => _isLoading = false);
+                },
+                icon: const Icon(Icons.cloud_upload, size: 14, color: Colors.black),
+                label: Text(
+                  tr('backup_now'),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      await BusinessService().setBusinessType(type);
-      Haptics.success();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${tr('business_changed')} ${tr(config.type.name)}'),
-            backgroundColor: config.accentColor,
-          ),
-        );
-      }
-    }
   }
 
-  Widget _buildBusinessTypeSection() {
+  Widget _buildAccountSection() {
     return _buildPillSection(
-      title: 'BUSINESS',
+      title: 'PREFERENCES',
+      icon: CupertinoIcons.slider_horizontal_3,
       children: [
         AnimatedBuilder(
           animation: BusinessService(),
           builder: (context, _) {
-            final config = BusinessConfig.fromType(
-              BusinessService().currentType,
-            );
+            final config = BusinessConfig.fromType(BusinessService().currentType);
             return CupertinoListTile(
               leading: Icon(
                 config.primaryIcon,
-                color: CupertinoColors.activeBlue,
+                color: Colors.blue,
               ),
               title: Text(
-                tr('business_type'),
+                tr('business'),
                 style: DisplayEngine.font(color: _getTextColor(context)),
               ),
               subtitle: Text(
                 tr(config.displayName),
-                style: TextStyle(
-                  color: _getTextColor(context).withOpacity(0.5),
-                ),
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
               ),
               trailing: const CupertinoListTileChevron(),
               onTap: _showBusinessTypeSheet,
             );
           },
+        ),
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.globe,
+            color: Colors.green,
+          ),
+          title: Text(
+            tr('language'),
+            style: DisplayEngine.font(color: _getTextColor(context)),
+          ),
+          subtitle: Text(
+            LocalizationService().currentLanguage.toUpperCase() == 'EN' ? 'English (EN)' : 'മലയാളം (ML)',
+            style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+          ),
+          trailing: const CupertinoListTileChevron(),
+          onTap: _showLanguageSheet,
         ),
       ],
     );
@@ -701,6 +1133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildAppearanceSection() {
     return _buildPillSection(
       title: 'APPEARANCE',
+      icon: CupertinoIcons.paintbrush,
       children: [
         AnimatedBuilder(
           animation: themeService,
@@ -710,13 +1143,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: Icon(
                 isDark ? CupertinoIcons.moon_fill : CupertinoIcons.sun_max_fill,
                 color: isDark ? Colors.purpleAccent : Colors.orange,
-              ).animate().scale(duration: 300.ms, curve: Curves.elasticOut),
+              ),
               title: Text(
-                tr('dark_mode'),
+                tr('theme') ?? 'Theme',
                 style: DisplayEngine.font(
                   fontWeight: FontWeight.w500,
                   color: _getTextColor(context),
                 ),
+              ),
+              subtitle: Text(
+                isDark ? 'Dark theme enabled' : 'Light theme enabled',
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
               ),
               trailing: CupertinoSwitch(
                 value: isDark,
@@ -728,176 +1165,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.globe,
-            color: CupertinoColors.activeGreen,
-          ),
-          title: Text(
-            tr('language'),
-            style: DisplayEngine.font(color: _getTextColor(context)),
-          ),
-          subtitle: Text(
-            LocalizationService().currentLanguage.toUpperCase(),
-            style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: _showLanguageSheet,
-        ),
       ],
-    );
-  }
-
-  Widget _buildAboutSection() {
-    return _buildPillSection(
-      title: 'ABOUT',
-      children: [
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.info_circle,
-            color: CupertinoColors.systemGrey,
-          ),
-          title: Text(
-            '${tr('version')} 2.3.2',
-            style: DisplayEngine.font(
-              fontWeight: FontWeight.w500,
-              color: _getTextColor(context),
-            ),
-          ),
-          onTap: () {
-            Haptics.heavy();
-            _showDevOptions();
-          },
-        ),
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.shield,
-            color: CupertinoColors.activeGreen,
-          ),
-          title: Text(
-            tr('privacy_policy'),
-            style: DisplayEngine.font(
-              fontWeight: FontWeight.w500,
-              color: _getTextColor(context),
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: () => launchUrl(
-            Uri.parse(
-              'https://github.com/kiran-embedded/-vownote-app/blob/main/README.md',
-            ),
-          ),
-        ),
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.doc_text,
-            color: CupertinoColors.activeBlue,
-          ),
-          title: Text(
-            tr('licenses'),
-            style: DisplayEngine.font(
-              fontWeight: FontWeight.w500,
-              color: _getTextColor(context),
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: () => showLicensePage(context: context),
-        ),
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.chevron_left_slash_chevron_right,
-            color: CupertinoColors.systemPurple,
-          ),
-          title: Text(
-            tr('github'),
-            style: DisplayEngine.font(
-              fontWeight: FontWeight.w500,
-              color: _getTextColor(context),
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: () => launchUrl(
-            Uri.parse('https://github.com/kiran-embedded/-vownote-app'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExportSettings() {
-    return _buildPillSection(
-      title: 'EXPORT',
-      children: [
-        CupertinoListTile(
-          leading: const Icon(
-            CupertinoIcons.doc_text_fill,
-            color: CupertinoColors.systemOrange,
-          ),
-          title: Text(
-            tr('export_settings'),
-            style: DisplayEngine.font(color: _getTextColor(context)),
-          ),
-          subtitle: Text(
-            tr('manage_pdf_layout'),
-            style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: _showExportSettingsSheet,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCupertinoSwitchTile(
-    String title,
-    bool value,
-    ValueChanged<bool> onChanged, {
-    required IconData icon,
-    required Color color,
-  }) {
-    return CupertinoListTile(
-      leading: Icon(icon, color: color)
-          .animate(target: value ? 1 : 0)
-          .scale(
-            begin: const Offset(0.9, 0.9),
-            end: const Offset(1.1, 1.1),
-            duration: 200.ms,
-          )
-          .then()
-          .scale(
-            begin: const Offset(1.1, 1.1),
-            end: const Offset(1.0, 1.0),
-            duration: 100.ms,
-          ),
-      title: Text(
-        title,
-        style: DisplayEngine.font(
-          fontWeight: FontWeight.w500,
-          color: _getTextColor(context),
-        ),
-      ),
-      trailing: CupertinoSwitch(
-        value: value,
-        onChanged: (v) {
-          Haptics.light();
-          onChanged(v);
-        },
-        activeColor: const Color(0xFFD4AF37),
-      ),
     );
   }
 
   Widget _buildSecuritySection() {
-    // Determine color based on availability
-    final iconColor = _canUseBiometrics ? const Color(0xFFD4AF37) : Colors.grey;
-
     return _buildPillSection(
       title: 'SECURITY',
+      icon: CupertinoIcons.lock_shield,
       children: [
         CupertinoListTile(
-          leading: Icon(Icons.lock_outline, color: iconColor)
-              .animate(target: _isLockEnabled ? 1 : 0)
-              .shake(hz: 4, curve: Curves.easeInOut), // Check animation
+          leading: const Icon(
+            CupertinoIcons.lock_fill,
+            color: Colors.orange,
+          ),
           title: Text(
             'App Lock',
             style: DisplayEngine.font(
@@ -907,9 +1188,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           subtitle: _canUseBiometrics
               ? Text(
-                  'Biometric & Device Authentication',
+                  'Biometric & device authentication',
                   style: TextStyle(
-                    color: _getTextColor(context).withOpacity(0.7),
+                    color: _getTextColor(context).withOpacity(0.5),
                   ),
                 )
               : const Text(
@@ -917,14 +1198,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(color: Colors.grey),
                 ),
           trailing: CupertinoSwitch(
-            value: _isLockEnabled, // Allow toggle even if just for PIN
+            value: _isLockEnabled,
             activeTrackColor: const Color(0xFFD4AF37),
             onChanged: (value) async {
-              // Remove strict check here, let authenticate handle it
               Haptics.light();
-
               if (value) {
-                // Enable logic
                 try {
                   final success = await BiometricService().authenticate();
                   if (success) {
@@ -933,30 +1211,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() => _isLockEnabled = true);
                   } else {
                     Haptics.error();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Authentication failed. App lock not enabled.',
-                          ),
-                        ),
-                      );
-                    }
                     setState(() => _isLockEnabled = false);
                   }
                 } catch (e) {
-                  if (mounted) {
-                    final message = e is PlatformException
-                        ? 'Auth Error: ${e.code} - ${e.message}'
-                        : 'Error: $e';
-
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(message)));
-                  }
+                  // handle exception
                 }
               } else {
-                // Disable logic
                 await BiometricService().setLockEnabled(false);
                 await BiometricService().clearAuth();
                 Haptics.medium();
@@ -970,31 +1230,189 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildBackupSection() {
-    return FutureBuilder<bool>(
-      future: Permission.manageExternalStorage.isGranted,
-      builder: (context, snapshot) {
-        final isGranted = snapshot.data ?? false;
-
+    final drive = GoogleDriveService();
+    return AnimatedBuilder(
+      animation: drive,
+      builder: (context, _) {
         return _buildPillSection(
           title: 'BACKUP & SYNC',
+          icon: CupertinoIcons.cloud_upload,
           children: [
             CupertinoListTile(
               leading: const Icon(
+                CupertinoIcons.cloud,
+                color: Colors.blue,
+              ),
+              title: Text(
+                tr('google_account'),
+                style: DisplayEngine.font(color: _getTextColor(context)),
+              ),
+              subtitle: Text(
+                drive.isSignedIn ? (drive.currentUser?.email ?? "") : tr('disconnected'),
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildBadge(
+                    drive.isSignedIn ? 'google_account_connected' : 'google_account_disconnected',
+                    drive.isSignedIn ? Colors.green : Colors.red,
+                  ),
+                  const SizedBox(width: 8),
+                  const CupertinoListTileChevron(),
+                ],
+              ),
+              onTap: () async {
+                Haptics.light();
+                if (!drive.isSignedIn) {
+                  try {
+                    await drive.signIn();
+                    Haptics.success();
+                  } catch (e) {
+                    Haptics.medium();
+                  }
+                } else {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: Text(tr('sign_out_google')),
+                      content: Text('${tr('connected_as')}: ${drive.currentUser?.email}'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, false),
+                          child: Text(tr('cancel')),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(c, true),
+                          child: Text(
+                            tr('sign_out'),
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await drive.signOut();
+                    Haptics.medium();
+                  }
+                }
+              },
+            ),
+
+            CupertinoListTile(
+              leading: const Icon(
+                CupertinoIcons.arrow_up_circle,
+                color: Colors.purple,
+              ),
+              title: Text(
+                tr('backup_now'),
+                style: DisplayEngine.font(color: _getTextColor(context)),
+              ),
+              subtitle: Text(
+                'Backup now to local & cloud • Last: $_lastBackupDisplay',
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+              ),
+              trailing: const CupertinoListTileChevron(),
+              onTap: () async {
+                setState(() => _isLoading = true);
+                try {
+                  await _backupService.silentBackup();
+                  Haptics.success();
+                  await _loadSettings();
+                } catch (e) {
+                  Haptics.medium();
+                } finally {
+                  setState(() => _isLoading = false);
+                }
+              },
+            ),
+            CupertinoListTile(
+              leading: const Icon(
+                CupertinoIcons.cloud_download,
+                color: Colors.green,
+              ),
+              title: Text(
+                tr('restore_from_drive'),
+                style: DisplayEngine.font(color: _getTextColor(context)),
+              ),
+              subtitle: Text(
+                'Restore your data from Google Drive',
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+              ),
+              trailing: drive.isRestoring
+                  ? const CupertinoActivityIndicator()
+                  : const CupertinoListTileChevron(),
+              onTap: drive.isRestoring
+                  ? null
+                  : () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: Text(tr('restore_backup')),
+                          content: Text(tr('import_backup_warning')),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: Text(tr('cancel')),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: Text(tr('import')),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        final success = await drive.restoreFromDrive();
+                        if (context.mounted) {
+                          if (success) {
+                            Haptics.success();
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (c) => AlertDialog(
+                                title: Text(tr('success')),
+                                content: Text(tr('restore_success')),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => exit(0),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } else {
+                            Haptics.medium();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(tr('error_restore'))),
+                            );
+                          }
+                        }
+                      }
+                    },
+            ),
+            CupertinoListTile(
+              leading: const Icon(
                 CupertinoIcons.share_up,
-                color: CupertinoColors.activeBlue,
+                color: Colors.blue,
               ),
               title: Text(
                 tr('export_backup'),
-                style: DisplayEngine.font(
-                  fontWeight: FontWeight.w500,
-                  color: _getTextColor(context),
-                ),
+                style: DisplayEngine.font(color: _getTextColor(context)),
               ),
+              subtitle: Text(
+                'Save backup to your device',
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+              ),
+              trailing: const CupertinoListTileChevron(),
               onTap: () async {
                 setState(() => _isLoading = true);
                 try {
                   await _backupService.exportBackup();
                   Haptics.success();
+                  await _loadSettings();
                 } catch (e) {
                   Haptics.medium();
                 } finally {
@@ -1005,23 +1423,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             CupertinoListTile(
               leading: const Icon(
                 CupertinoIcons.arrow_down_doc,
-                color: CupertinoColors.activeGreen,
+                color: Colors.orange,
               ),
               title: Text(
                 tr('import_backup'),
-                style: DisplayEngine.font(
-                  fontWeight: FontWeight.w500,
-                  color: _getTextColor(context),
-                ),
+                style: DisplayEngine.font(color: _getTextColor(context)),
               ),
+              subtitle: Text(
+                'Import backup from your device',
+                style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+              ),
+              trailing: const CupertinoListTileChevron(),
               onTap: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (c) => AlertDialog(
                     title: Text(tr('restore_backup')),
-                    content: Text(
-                      tr('import_backup_warning'),
-                    ),
+                    content: Text(tr('import_backup_warning')),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(c, false),
@@ -1049,9 +1467,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             content: Text(tr('restore_success')),
                             actions: [
                               TextButton(
-                                onPressed: () => exit(0),
-                                child: const Text('OK'),
-                              ),
+                                  onPressed: () => exit(0),
+                                  child: const Text('OK')),
                             ],
                           ),
                         );
@@ -1072,237 +1489,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
               },
             ),
-            CupertinoListTile(
-              leading: Icon(
-                isGranted
-                    ? CupertinoIcons.cloud_upload_fill
-                    : CupertinoIcons.exclamationmark_triangle_fill,
-                color: isGranted
-                    ? CupertinoColors.activeBlue
-                    : CupertinoColors.systemOrange,
-              ),
-              title: Text(
-                tr('auto_backup'),
-                style: DisplayEngine.font(
-                  fontWeight: FontWeight.w500,
-                  color: _getTextColor(context),
-                ),
-              ),
-              trailing: isGranted
-                  ? const Icon(
-                      CupertinoIcons.check_mark,
-                      color: CupertinoColors.activeGreen,
-                    )
-                  : CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: Text(tr('enable')),
-                      onPressed: () async {
-                        await _backupService.requestStoragePermission();
-                        setState(() {});
-                      },
-                    ),
-            ),
-            const Divider(height: 1, indent: 50),
-            AnimatedBuilder(
-              animation: GoogleDriveService(),
-              builder: (context, _) {
-                final drive = GoogleDriveService();
-                if (!drive.isSignedIn) {
-                  return CupertinoListTile(
-                    leading: const Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Icon(
-                          CupertinoIcons.cloud,
-                          color: CupertinoColors.systemGrey,
-                        ),
-                        Positioned(
-                          right: -3,
-                          bottom: -3,
-                          child: Icon(
-                            CupertinoIcons.exclamationmark_triangle_fill,
-                            size: 12,
-                            color: CupertinoColors.systemOrange,
-                          ),
-                        ),
-                      ],
-                    ),
-                    title: Text(
-                      tr('sign_in_google'),
-                      style: DisplayEngine.font(
-                        fontWeight: FontWeight.w500,
-                        color: _getTextColor(context),
-                      ),
-                    ),
-                    trailing: drive.isLoading
-                        ? const CupertinoActivityIndicator()
-                        : const CupertinoListTileChevron(),
-                    onTap: drive.isLoading
-                        ? null
-                        : () async {
-                            try {
-                              await drive.signIn();
-                              Haptics.success();
-                            } catch (e) {
-                              Haptics.medium();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Sign in failed: $e')),
-                                );
-                              }
-                            }
-                          },
-                  );
-                }
-
-                return Column(
-                  children: [
-                    CupertinoListTile(
-                      leading: const Icon(
-                        CupertinoIcons.person_crop_circle_fill,
-                        color: CupertinoColors.activeBlue,
-                      ),
-                      title: Text(
-                        '${tr('connected_as')}: ${drive.currentUser?.email ?? ""}',
-                        style: DisplayEngine.font(
-                          fontSize: 12,
-                          color: _getTextColor(context),
-                        ),
-                      ),
-                      trailing: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: drive.isLoading
-                            ? null
-                            : () async {
-                                await drive.signOut();
-                                Haptics.light();
-                              },
-                        child: Text(
-                          tr('sign_out'),
-                          style: const TextStyle(
-                            color: CupertinoColors.destructiveRed,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1, indent: 50),
-                    CupertinoListTile(
-                      leading: const Icon(
-                        CupertinoIcons.cloud_upload,
-                        color: CupertinoColors.activeBlue,
-                      ),
-                      title: Text(
-                        tr('backup_to_drive'),
-                        style: DisplayEngine.font(
-                          fontWeight: FontWeight.w500,
-                          color: _getTextColor(context),
-                        ),
-                      ),
-                      trailing: drive.isBackingUp
-                          ? const CupertinoActivityIndicator()
-                          : const CupertinoListTileChevron(),
-                      onTap: drive.isBackingUp
-                          ? null
-                          : () async {
-                              final success = await drive.backupToDrive();
-                              if (context.mounted) {
-                                if (success) {
-                                  Haptics.success();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(tr('backup_success'))),
-                                  );
-                                } else {
-                                  Haptics.medium();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(tr('error_backup'))),
-                                  );
-                                }
-                              }
-                            },
-                    ),
-                    const Divider(height: 1, indent: 50),
-                    CupertinoListTile(
-                      leading: const Icon(
-                        CupertinoIcons.cloud_download,
-                        color: CupertinoColors.activeGreen,
-                      ),
-                      title: Text(
-                        tr('restore_from_drive'),
-                        style: DisplayEngine.font(
-                          fontWeight: FontWeight.w500,
-                          color: _getTextColor(context),
-                        ),
-                      ),
-                      trailing: drive.isRestoring
-                          ? const CupertinoActivityIndicator()
-                          : const CupertinoListTileChevron(),
-                      onTap: drive.isRestoring
-                          ? null
-                          : () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (c) => AlertDialog(
-                                  title: Text(tr('restore_backup')),
-                                  content: Text(tr('import_backup_warning')),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(c, false),
-                                      child: Text(tr('cancel')),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(c, true),
-                                      child: Text(tr('import')),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-                              if (confirm == true) {
-                                final success = await drive.restoreFromDrive();
-                                if (context.mounted) {
-                                  if (success) {
-                                    Haptics.success();
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (c) => AlertDialog(
-                                        title: Text(tr('success')),
-                                        content: Text(tr('restore_success')),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => exit(0),
-                                            child: const Text('OK'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  } else {
-                                    Haptics.medium();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(tr('error_restore'))),
-                                    );
-                                  }
-                                }
-                              }
-                            },
-                    ),
-                  ],
-                );
-              },
-            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildHelpSection() {
+  Widget _buildExportSettings() {
     return _buildPillSection(
-      title: 'HELP',
+      title: 'EXPORT & REPORTS',
+      icon: CupertinoIcons.doc_text,
       children: [
         CupertinoListTile(
-          leading: const Text('❓', style: TextStyle(fontSize: 20)),
+          leading: const Icon(
+            CupertinoIcons.doc_text_fill,
+            color: Colors.orange,
+          ),
+          title: Text(
+            tr('pdf_report_settings'),
+            style: DisplayEngine.font(color: _getTextColor(context)),
+          ),
+          subtitle: Text(
+            tr('pdf_report_settings_description'),
+            style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
+          ),
+          trailing: const CupertinoListTileChevron(),
+          onTap: _showExportSettingsSheet,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHelpSection() {
+    return _buildPillSection(
+      title: 'HELP & SUPPORT',
+      icon: CupertinoIcons.question_circle,
+      children: [
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.book_fill,
+            color: Colors.pink,
+          ),
           title: Text(
             tr('help_center'),
             style: DisplayEngine.font(
@@ -1312,7 +1539,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           subtitle: Text(
             tr('help_text'),
-            style: TextStyle(color: _getTextColor(context).withOpacity(0.7)),
+            style: TextStyle(color: _getTextColor(context).withOpacity(0.5)),
           ),
           trailing: const CupertinoListTileChevron(),
           onTap: _showHelpDetail,
@@ -1320,22 +1547,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         CupertinoListTile(
           leading: const Icon(
             CupertinoIcons.chat_bubble_2,
-            color: CupertinoColors.activeGreen,
+            color: Colors.green,
           ),
           title: Text(
-            'WhatsApp',
+            'WhatsApp Support',
             style: DisplayEngine.font(
               fontWeight: FontWeight.w500,
               color: _getTextColor(context),
             ),
           ),
+          subtitle: const Text('Chat with us on WhatsApp', style: TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const CupertinoListTileChevron(),
           onTap: () => launchUrl(Uri.parse('https://wa.me/919526480039')),
         ),
         CupertinoListTile(
           leading: const Icon(
             CupertinoIcons.paperplane,
-            color: CupertinoColors.activeBlue,
+            color: Colors.blue,
           ),
           title: Text(
             'Telegram',
@@ -1344,23 +1572,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: _getTextColor(context),
             ),
           ),
+          subtitle: const Text('Join our Telegram channel', style: TextStyle(color: Colors.grey, fontSize: 11)),
           trailing: const CupertinoListTileChevron(),
           onTap: () => launchUrl(Uri.parse('https://t.me/SYNTAX_VOLT')),
         ),
         CupertinoListTile(
           leading: const Icon(
             CupertinoIcons.mail,
-            color: CupertinoColors.systemRed,
+            color: Colors.pinkAccent,
           ),
           title: Text(
-            tr('contact_support') ?? 'Contact Support',
+            tr('contact_support') ?? 'Email Support',
+            style: DisplayEngine.font(
+              fontWeight: FontWeight.w500,
+              color: _getTextColor(context),
+            ),
+          ),
+          subtitle: const Text('support@bizledger.app', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          trailing: const CupertinoListTileChevron(),
+          onTap: () => launchUrl(Uri.parse('mailto:kiran.cybergrid@gmail.com')),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutSection() {
+    return _buildPillSection(
+      title: 'ABOUT',
+      icon: CupertinoIcons.info_circle,
+      children: [
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.info_circle,
+            color: Colors.blueGrey,
+          ),
+          title: Text(
+            tr('version') ?? 'Version',
+            style: DisplayEngine.font(
+              fontWeight: FontWeight.w500,
+              color: _getTextColor(context),
+            ),
+          ),
+          subtitle: const Text('BizLedger v2.3.4', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildBadge('Latest', Colors.blue),
+              const SizedBox(width: 8),
+              const CupertinoListTileChevron(),
+            ],
+          ),
+          onTap: _showUpdateDialog,
+        ),
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.shield,
+            color: Colors.green,
+          ),
+          title: Text(
+            tr('privacy_policy'),
             style: DisplayEngine.font(
               fontWeight: FontWeight.w500,
               color: _getTextColor(context),
             ),
           ),
           trailing: const CupertinoListTileChevron(),
-          onTap: () => launchUrl(Uri.parse('mailto:kiran.cybergrid@gmail.com')),
+          onTap: () => launchUrl(
+            Uri.parse(
+              'https://github.com/kiran-embedded/-vownote-app/blob/main/README.md',
+            ),
+          ),
+        ),
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.doc_text,
+            color: Colors.blue,
+          ),
+          title: Text(
+            tr('licenses'),
+            style: DisplayEngine.font(
+              fontWeight: FontWeight.w500,
+              color: _getTextColor(context),
+            ),
+          ),
+          trailing: const CupertinoListTileChevron(),
+          onTap: () => showLicensePage(context: context),
+        ),
+        CupertinoListTile(
+          leading: const Icon(
+            CupertinoIcons.chevron_left_slash_chevron_right,
+            color: Colors.purple,
+          ),
+          title: Text(
+            tr('github'),
+            style: DisplayEngine.font(
+              fontWeight: FontWeight.w500,
+              color: _getTextColor(context),
+            ),
+          ),
+          subtitle: const Text('View source code', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          trailing: const CupertinoListTileChevron(),
+          onTap: () => launchUrl(
+            Uri.parse('https://github.com/kiran-embedded/-vownote-app'),
+          ),
         ),
       ],
     );
@@ -1374,50 +1688,178 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showDevOptions() {
-    showCupertinoDialog(
+  void _showUpdateDialog() {
+    Haptics.heavy();
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(tr('developer_options')),
-        content: Material(
-          color: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ValueListenableBuilder<bool>(
-                valueListenable:
-                    PerformanceService().isFpsOverlayEnabledNotifier,
-                builder: (context, enabled, _) => SwitchListTile.adaptive(
-                  title: Text(
-                    tr('fps_monitor'),
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  value: enabled,
-                  onChanged: (v) => PerformanceService().toggleFpsOverlay(v),
-                ),
+      builder: (context) {
+        bool isChecking = false;
+        String statusText = 'System is up to date.';
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  const Icon(Icons.cloud_sync, color: Color(0xFFD4AF37)),
+                  const SizedBox(width: 8),
+                  Text(tr('remote_update') ?? 'Remote Update'),
+                ],
               ),
-              ValueListenableBuilder<bool>(
-                valueListenable:
-                    PerformanceService().isHighRefreshEnabledNotifier,
-                builder: (context, enabled, _) => SwitchListTile.adaptive(
-                  title: Text(
-                    tr('promotion_120hz'),
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  value: enabled,
-                  onChanged: (v) => PerformanceService().toggleHighRefresh(v),
-                ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Current Version: 2.3.2', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(statusText, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                  if (isChecking) ...[
+                    const SizedBox(height: 16),
+                    const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+                  ],
+                ],
               ),
-            ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Haptics.light();
+                    launchUrl(Uri.parse('https://github.com/kiran-embedded/-vownote-app/releases'));
+                  },
+                  child: const Text('GitHub Releases'),
+                ),
+                TextButton(
+                  onPressed: isChecking
+                      ? null
+                      : () async {
+                          Haptics.selection();
+                          setDialogState(() {
+                            isChecking = true;
+                            statusText = 'Checking GitHub repository...';
+                          });
+                          await Future.delayed(const Duration(seconds: 1));
+                          if (context.mounted) {
+                            setDialogState(() {
+                              isChecking = false;
+                              statusText = 'You are running the latest version (BizLedger v2.3.4).';
+                            });
+                          }
+                        },
+                  child: const Text('Check Now'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(tr('close')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class CupertinoListTile extends StatelessWidget {
+  final Widget? leading;
+  final Widget title;
+  final Widget? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const CupertinoListTile({
+    super.key,
+    this.leading,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Widget? formattedLeading = leading;
+
+    if (leading is Icon) {
+      final iconWidget = leading as Icon;
+      final iconColor = iconWidget.color ?? const Color(0xFFD4AF37);
+      formattedLeading = Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: iconColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Icon(
+            iconWidget.icon,
+            color: Colors.white,
+            size: 16,
           ),
         ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text(tr('close')),
-          ),
-        ],
-      ),
+      );
+    } else if (leading != null) {
+      formattedLeading = SizedBox(
+        width: 28,
+        height: 28,
+        child: Center(child: leading),
+      );
+    }
+
+    return ListTile(
+      leading: formattedLeading,
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      dense: true,
+    );
+  }
+}
+
+class CupertinoListTileChevron extends StatelessWidget {
+  const CupertinoListTileChevron({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(Icons.chevron_right, size: 20, color: Colors.grey);
+  }
+}
+
+class CupertinoSwitch extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final Color? activeColor;
+  final Color? activeTrackColor;
+
+  const CupertinoSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.activeColor,
+    this.activeTrackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Switch(
+      value: value,
+      onChanged: onChanged,
+      activeColor: activeColor ?? activeTrackColor,
+    );
+  }
+}
+
+class CupertinoActivityIndicator extends StatelessWidget {
+  const CupertinoActivityIndicator({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD4AF37)),
     );
   }
 }

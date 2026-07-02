@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BackupService {
   static const String _primaryFolder = 'BizLedger';
@@ -60,6 +61,13 @@ class BackupService {
       };
 
       final successCount = resultMap.values.where((v) => v).length;
+
+      if (successCount > 0) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('last_backup_time', DateTime.now().toIso8601String());
+        } catch (_) {}
+      }
 
       if (successCount == 0 && retryCount < 1) {
         await Future.delayed(const Duration(seconds: 1));
@@ -176,7 +184,13 @@ class BackupService {
         if (!await directory.exists()) await directory.create(recursive: true);
         final file = File('${directory.path}/$fileName');
         await dbFile.copy(file.path);
-        if (await verifyBackup(file)) return file.path;
+        if (await verifyBackup(file)) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('last_backup_time', DateTime.now().toIso8601String());
+          } catch (_) {}
+          return file.path;
+        }
       }
     } catch (e) {
       debugPrint('Manual export failed, falling back: $e');

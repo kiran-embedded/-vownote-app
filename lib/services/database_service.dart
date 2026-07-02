@@ -75,7 +75,7 @@ class DatabaseService {
     return await openDatabase(
       path,
       password: dbKey,
-      version: 7, // Bumped for index creation
+      version: 8, // Bumped for isClosed column
       onConfigure: (db) async {
         // High performance optimizations
         // Must use rawQuery because these PRAGMAs return a result row, and execute() would crash.
@@ -107,7 +107,8 @@ class DatabaseService {
             payments TEXT,
             taxRate REAL,
             discountAmount REAL,
-            discountPercentage REAL
+            discountPercentage REAL,
+            isClosed INTEGER DEFAULT 0
           )
         ''');
         await db.execute('CREATE INDEX idx_bookings_businessType ON bookings (businessType)');
@@ -145,6 +146,9 @@ class DatabaseService {
         if (oldVersion < 7) {
           await db.execute('CREATE INDEX IF NOT EXISTS idx_bookings_businessType ON bookings (businessType)');
           await db.execute('CREATE INDEX IF NOT EXISTS idx_bookings_createdAt ON bookings (createdAt)');
+        }
+        if (oldVersion < 8) {
+          await db.execute('ALTER TABLE bookings ADD COLUMN isClosed INTEGER DEFAULT 0');
         }
       },
     );

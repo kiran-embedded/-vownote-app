@@ -172,6 +172,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
         if (widget.booking == null) {
           await DatabaseService().insertBooking(booking);
         } else {
+          await NotificationService().cancelNotifications(widget.booking!);
           await DatabaseService().updateBooking(booking);
         }
 
@@ -185,7 +186,7 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
             _isSaving = false;
           });
           Haptics.success();
-          await Future.delayed(const Duration(milliseconds: 950));
+          await Future.delayed(const Duration(milliseconds: 400));
           if (mounted) {
             Navigator.pop(context, booking);
           }
@@ -656,14 +657,14 @@ class _BookingFormScreenState extends State<BookingFormScreen> {
                 )
                 .animate()
                 .scale(
-                  duration: 350.ms,
+                  duration: 200.ms,
                   begin: const Offset(0.0, 0.0),
                   end: const Offset(1.0, 1.0),
-                  curve: Curves.elasticOut,
+                  curve: Curves.easeOutBack,
                 )
                 .shimmer(
-                  delay: 150.ms,
-                  duration: 500.ms,
+                  delay: 50.ms,
+                  duration: 300.ms,
                   color: Colors.white54,
                 ),
             const SizedBox(height: 24),

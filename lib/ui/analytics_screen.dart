@@ -38,7 +38,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _loadData() async {
-    final bookings = await DatabaseService().getBookings();
+    final currentBusiness = BusinessService().currentType.name;
+    final bookings = await DatabaseService().getBookings(
+      businessType: currentBusiness,
+    );
 
     double revenue = 0;
     double collected = 0;
@@ -294,7 +297,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '₹${NumberFormat.decimalPattern().format(rev)}',
+                    '₹${NumberFormat.compact().format(rev)}',
                     style: DisplayEngine.font(
                       color: Colors.black,
                       fontSize: 32,

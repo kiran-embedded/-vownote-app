@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:vownote/utils/display_engine.dart';
 import 'package:vownote/utils/haptics.dart';
 import 'package:vownote/services/business_service.dart';
 import 'package:vownote/services/localization_service.dart';
@@ -14,568 +12,587 @@ class HelpCenterScreen extends StatefulWidget {
   State<HelpCenterScreen> createState() => _HelpCenterScreenState();
 }
 
-class _HelpCenterScreenState extends State<HelpCenterScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _HelpCenterScreenState extends State<HelpCenterScreen> {
   int? _expandedIndex;
   String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+
+  static const _gold = Color(0xFFD4AF37);
 
   String _localTr(String key, String fallback) {
     final val = tr(key);
     return val == key ? fallback : val;
   }
 
-  List<HelpSection> getHelpSections(BuildContext context) {
-    return [
-      HelpSection(
-        icon: Icons.add_circle_outline,
-        title: tr('help_create_title'),
-        content: tr('help_create_content'),
-        steps: [
-          tr('help_create_step1'),
-          tr('help_create_step2'),
-          tr('help_create_step3'),
-          tr('help_create_step4'),
-          tr('help_create_step5'),
-        ],
-      ),
-      HelpSection(
-        icon: Icons.business_center,
-        title: tr('help_biz_title'),
-        content: tr('help_biz_content'),
-        steps: [tr('help_biz_step1'), tr('help_biz_step2'), tr('help_biz_step3')],
-      ),
-      HelpSection(
-        icon: Icons.calculate,
-        title: tr('help_calc_title'),
-        content: tr('help_calc_content'),
-        steps: [
-          tr('help_calc_step1'),
-          tr('help_calc_step2'),
-          tr('help_calc_step3'),
-        ],
-      ),
-      HelpSection(
-        icon: Icons.share,
-        title: tr('help_share_title'),
-        content: tr('help_share_content'),
-        steps: [
-          tr('help_share_step1'),
-          tr('help_share_step2'),
-          tr('help_share_step3'),
-        ],
-      ),
-      HelpSection(
-        icon: Icons.gesture_rounded,
-        title: _localTr('help_gestures_title', 'Gestures & Shortcuts'),
-        content: _localTr('help_gestures_content', 'Use swipe actions and shortcuts on the home screen to manage bookings quickly and efficiently.'),
-        steps: [
-          _localTr('help_gestures_step1', 'Swipe LEFT on any booking to trigger delete confirmation.'),
-          _localTr('help_gestures_step2', 'Swipe RIGHT on any booking to instantly trigger clients share options.'),
-          _localTr('help_gestures_step3', 'Tap any booking card to open and edit its details.'),
-          _localTr('help_gestures_step4', 'Long-press a booking card to activate selection mode for bulk delete/share.'),
-        ],
-      ),
-      HelpSection(
-        icon: Icons.dark_mode,
-        title: tr('help_dark_title'),
-        content: tr('help_dark_content'),
-        steps: [tr('help_dark_step1'), tr('help_dark_step2')],
-      ),
-      HelpSection(
-        icon: Icons.backup,
-        title: tr('help_backup_title'),
-        content: tr('help_backup_content'),
-        steps: [
-          tr('help_backup_step1'),
-          tr('help_backup_step2'),
-          tr('help_backup_step3'),
-          tr('help_backup_step4'),
-        ],
-      ),
-    ];
-  }
+  List<_HelpItem> get _helpItems => [
+    _HelpItem(
+      icon: Icons.add_circle_outline_rounded,
+      emoji: '➕',
+      color: const Color(0xFFD4AF37),
+      title: tr('help_create_title'),
+      summary: 'Create and manage your bookings',
+      steps: [
+        tr('help_create_step1'),
+        tr('help_create_step2'),
+        tr('help_create_step3'),
+        tr('help_create_step4'),
+        tr('help_create_step5'),
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.business_center_rounded,
+      emoji: '🏢',
+      color: const Color(0xFF6366F1),
+      title: tr('help_biz_title'),
+      summary: 'Configure your business type & profile',
+      steps: [tr('help_biz_step1'), tr('help_biz_step2'), tr('help_biz_step3')],
+    ),
+    _HelpItem(
+      icon: Icons.calculate_rounded,
+      emoji: '💰',
+      color: const Color(0xFF10B981),
+      title: tr('help_calc_title'),
+      summary: 'Understand amounts, tax, and pending',
+      steps: [
+        tr('help_calc_step1'),
+        tr('help_calc_step2'),
+        tr('help_calc_step3'),
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.payments_outlined,
+      emoji: '✅',
+      color: Colors.teal,
+      title: 'Mark Payment Received',
+      summary: 'How to record payment from a client',
+      steps: [
+        'Go to Home and tap the "Pending Amount" stat card.',
+        'In the pending list, swipe LEFT (←) on a booking.',
+        'A confirmation sheet will appear showing the exact amount.',
+        'Tap "Confirm" to mark it as fully received.',
+        'The booking immediately updates to Paid ✓ in the list.',
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.swipe_rounded,
+      emoji: '👆',
+      color: const Color(0xFF8B5CF6),
+      title: _localTr('help_gestures_title', 'Gestures & Shortcuts'),
+      summary: 'Swipe, tap, long-press quick actions',
+      steps: [
+        'Swipe LEFT ← on a home booking card to DELETE it (with confirmation).',
+        'Swipe RIGHT → on a home booking card to open Share options.',
+        'Swipe RIGHT → on detail page cards to send WhatsApp thank-you.',
+        'Swipe LEFT ← on pending detail cards to Mark as Received.',
+        'Long-press any booking to enter SELECTION MODE for bulk delete.',
+        'Tap a booking card to open and edit full details.',
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.share_rounded,
+      emoji: '📤',
+      color: const Color(0xFF06B6D4),
+      title: tr('help_share_title'),
+      summary: 'Share bookings via WhatsApp or PDF',
+      steps: [
+        tr('help_share_step1'),
+        tr('help_share_step2'),
+        tr('help_share_step3'),
+        'Swipe right → on detail page booking cards to send a personalised WhatsApp thank-you message.',
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.delete_sweep_outlined,
+      emoji: '🗑️',
+      color: Colors.red,
+      title: 'Delete Bookings',
+      summary: 'Delete single or multiple bookings',
+      steps: [
+        'Single delete: Swipe LEFT on any booking card on the home screen.',
+        'A confirmation dialog will appear — tap Delete to confirm.',
+        'Bulk delete: Long-press any booking to enter selection mode.',
+        'A bar slides up from the bottom — tap more cards to select them.',
+        'Tap the red "Delete (N)" button to delete all selected at once.',
+        'Tap "Cancel" to exit selection mode without deleting.',
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.calendar_month_rounded,
+      emoji: '📅',
+      color: const Color(0xFFEF4444),
+      title: _localTr('help_calendar_title', 'Using the Calendar'),
+      summary: 'View and manage bookings by date',
+      steps: [
+        _localTr('help_calendar_step1', 'Tap the Calendar tab at the bottom of the screen.'),
+        _localTr('help_calendar_step2', 'Dates with bookings are highlighted with a gold dot.'),
+        _localTr('help_calendar_step3', 'Tap any highlighted date to see its bookings below.'),
+        _localTr('help_calendar_step4', 'Tap a booking from the list to open and edit it.'),
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.filter_list_rounded,
+      emoji: '🔍',
+      color: const Color(0xFFF59E0B),
+      title: 'Filters & Search',
+      summary: 'Find bookings quickly with smart filters',
+      steps: [
+        'Use the search bar on the home screen to search by name, phone, location, or ID.',
+        'Tap filter pills (This Month, Client, Payment, More Filters) to narrow results.',
+        '"This Month" pill has a dropdown: Today, This Week, Last Month, Custom Range.',
+        '"Payment" filter: All, Paid, Advance, Due, Upcoming, Cancelled.',
+        '"More Filters" lets you filter by Service, Location, Amount range, and Sort.',
+        'All filters work across all business modes (Wedding, Photography, Catering, etc.).',
+      ],
+    ),
+    _HelpItem(
+      icon: Icons.backup_rounded,
+      emoji: '☁️',
+      color: const Color(0xFF3B82F6),
+      title: tr('help_backup_title'),
+      summary: 'Backup and restore your data',
+      steps: [
+        tr('help_backup_step1'),
+        tr('help_backup_step2'),
+        tr('help_backup_step3'),
+        tr('help_backup_step4'),
+      ],
+    ),
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _controller.forward();
+  List<_HelpItem> get _filtered {
+    if (_searchQuery.isEmpty) return _helpItems;
+    final q = _searchQuery.toLowerCase();
+    return _helpItems.where((item) =>
+      item.title.toLowerCase().contains(q) ||
+      item.summary.toLowerCase().contains(q) ||
+      item.steps.any((s) => s.toLowerCase().contains(q))
+    ).toList();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
-  }
-
-  void _toggleSection(int index) {
-    setState(() {
-      if (_expandedIndex == index) {
-        _expandedIndex = null;
-      } else {
-        _expandedIndex = index;
-        Haptics.light();
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final businessConfig = BusinessService().config;
+    final config = BusinessService().config;
+    final items = _filtered;
 
-    return AnimatedBuilder(
-      animation: LocalizationService(),
-      builder: (context, child) {
-        return Scaffold(
-          body: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar.large(
-                expandedHeight: 200,
-                pinned: true,
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    tr('help_center'),
-                    style: DisplayEngine.font(fontWeight: FontWeight.bold),
-                  ),
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary.withOpacity(0.3),
-                          theme.colorScheme.primary.withOpacity(0.1),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+    return Scaffold(
+      backgroundColor: const Color(0xFF000000),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ─── Header ───────────────────────────────────────────────
+            _buildHeader(config),
+            // ─── Search ───────────────────────────────────────────────
+            _buildSearch(),
+            // ─── Quick actions row ────────────────────────────────────
+            if (_searchQuery.isEmpty) _buildQuickActions(),
+            // ─── List ─────────────────────────────────────────────────
+            Expanded(
+              child: items.isEmpty
+                  ? _buildEmpty()
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                      itemCount: items.length,
+                      itemBuilder: (_, i) => _buildCard(i, items[i]),
                     ),
-                    child: Center(
-                      child:
-                          Icon(
-                                Icons.help_outline_rounded,
-                                size: 80,
-                                color: theme.colorScheme.primary.withOpacity(
-                                  0.5,
-                                ),
-                              )
-                              .animate(
-                                onPlay: (controller) => controller.repeat(),
-                              )
-                              .scale(
-                                duration: 2000.ms,
-                                begin: const Offset(0.9, 0.9),
-                                end: const Offset(1.1, 1.1),
-                                curve: Curves.easeInOut,
-                              )
-                              .then()
-                              .scale(
-                                duration: 2000.ms,
-                                begin: const Offset(1.1, 1.1),
-                                end: const Offset(0.9, 0.9),
-                                curve: Curves.easeInOut,
-                              ),
-                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(businessConfig) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0A0A0A),
+        border: Border(bottom: BorderSide(color: Color(0xFF1A1A1A))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () { Haptics.light(); Navigator.pop(context); },
+                child: Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child:
-                      Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer
-                                  .withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: theme.colorScheme.primary.withOpacity(
-                                  0.2,
-                                ),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  businessConfig.primaryIcon,
-                                  size: 48,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Using ${businessConfig.appTitle}',
-                                  style: DisplayEngine.font(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Configured for ${businessConfig.displayName}',
-                                  style: TextStyle(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                          .animate()
-                          .fadeIn(duration: 600.ms)
-                          .slideY(
-                            begin: -0.2,
-                            end: 0,
-                            curve: Curves.easeOutCubic,
-                          ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _gold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _gold.withOpacity(0.3)),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                        _expandedIndex = null;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: _localTr('search_help', 'Search help topics...'),
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.4),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: theme.colorScheme.primary.withOpacity(0.6),
-                      ),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                  _expandedIndex = null;
-                                });
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: theme.cardColor,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.auto_awesome, color: _gold, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      businessConfig.displayName,
+                      style: const TextStyle(color: _gold, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
-                  ),
+                  ],
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                sliver: Builder(
-                  builder: (context) {
-                    final sections = getHelpSections(context);
-                    final filteredSections = sections.where((section) {
-                      if (_searchQuery.isEmpty) return true;
-                      final query = _searchQuery.toLowerCase();
-                      final titleMatch = section.title.toLowerCase().contains(query);
-                      final contentMatch = section.content.toLowerCase().contains(query);
-                      final stepsMatch = section.steps.any((step) => step.toLowerCase().contains(query));
-                      return titleMatch || contentMatch || stepsMatch;
-                    }).toList();
-
-                    if (filteredSections.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.search_off_rounded,
-                                  size: 64,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _localTr('no_results', 'No help topics found'),
-                                  style: DisplayEngine.font(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final section = filteredSections[index];
-                        final isExpanded = _expandedIndex == index;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _toggleSection(index),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: theme.cardColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: isExpanded
-                                        ? theme.colorScheme.primary
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                  boxShadow: isExpanded
-                                      ? [
-                                          BoxShadow(
-                                            color: theme.colorScheme.primary
-                                                .withOpacity(0.2),
-                                            blurRadius: 10,
-                                            spreadRadius: 2,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: theme.colorScheme.primary
-                                                  .withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(
-                                                12,
-                                              ),
-                                            ),
-                                            child: Icon(
-                                              section.icon,
-                                              color: theme.colorScheme.primary,
-                                              size: 24,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Text(
-                                              section.title,
-                                              style: DisplayEngine.font(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          Icon(
-                                            isExpanded
-                                                ? Icons.expand_less
-                                                : Icons.expand_more,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    AnimatedSize(
-                                      duration: const Duration(milliseconds: 300),
-                                      curve: Curves.easeInOut,
-                                      child: isExpanded
-                                          ? Padding(
-                                              padding: const EdgeInsets.fromLTRB(
-                                                20,
-                                                0,
-                                                20,
-                                                20,
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  const Divider(),
-                                                  const SizedBox(height: 12),
-                                                  Text(
-                                                    section.content,
-                                                    style: TextStyle(
-                                                      color: theme
-                                                          .colorScheme
-                                                          .onSurface
-                                                          .withOpacity(0.7),
-                                                      height: 1.5,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 16),
-                                                  Text(
-                                                    _localTr('steps', 'Steps:'),
-                                                    style: DisplayEngine.font(
-                                                      fontWeight: FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  ...section.steps.asMap().entries.map((
-                                                    entry,
-                                                  ) {
-                                                    return Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                            bottom: 8,
-                                                          ),
-                                                      child: Row(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Container(
-                                                            width: 24,
-                                                            height: 24,
-                                                            decoration:
-                                                                BoxDecoration(
-                                                                  color: theme
-                                                                      .colorScheme
-                                                                      .primary,
-                                                                  shape: BoxShape
-                                                                      .circle,
-                                                                ),
-                                                            child: Center(
-                                                              child: Text(
-                                                                '${entry.key + 1}',
-                                                                style:
-                                                                    const TextStyle(
-                                                                      color: Colors
-                                                                          .white,
-                                                                      fontSize: 12,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(width: 12),
-                                                          Expanded(
-                                                            child: Text(
-                                                              entry.value,
-                                                              style: TextStyle(
-                                                                color: theme
-                                                                    .colorScheme
-                                                                    .onSurface
-                                                                    .withOpacity(
-                                                                      0.8,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                  }),
-                                                  const SizedBox(height: 12),
-                                                  const Divider(),
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        _localTr('was_helpful', 'Was this helpful?'),
-                                                        style: TextStyle(
-                                                          color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                      Row(
-                                                        children: [
-                                                          TextButton.icon(
-                                                            onPressed: () {
-                                                              Haptics.success();
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(
-                                                                  content: Text(_localTr('feedback_thanks', 'Thanks for your feedback!')),
-                                                                  duration: const Duration(seconds: 1),
-                                                                ),
-                                                              );
-                                                            },
-                                                            icon: const Icon(Icons.thumb_up_alt_outlined, size: 16),
-                                                            label: Text(_localTr('yes', 'Yes')),
-                                                          ),
-                                                          TextButton.icon(
-                                                            onPressed: () {
-                                                              Haptics.medium();
-                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                SnackBar(
-                                                                  content: Text(_localTr('feedback_improve', 'We will improve this topic.')),
-                                                                  duration: const Duration(seconds: 1),
-                                                                ),
-                                                              );
-                                                            },
-                                                            icon: const Icon(Icons.thumb_down_alt_outlined, size: 16),
-                                                            label: Text(_localTr('no', 'No')),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ).animate().fadeIn(duration: 200.ms).slideY(begin: -0.1, end: 0, curve: Curves.easeOut),
-                                            )
-                                          : const SizedBox.shrink(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ).animate(delay: (index * 50).ms).fadeIn(duration: 400.ms).slideX(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-                        );
-                      }, childCount: filteredSections.length),
-                    );
-                  }
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ),
-        );
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _gold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.help_outline_rounded, color: _gold, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Help Centre',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Everything you need to know',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ).animate().fadeIn(duration: 300.ms),
+    );
+  }
+
+  Widget _buildSearch() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: const Color(0xFF121212),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(Icons.search, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                autofocus: false,
+                onChanged: (v) => setState(() { _searchQuery = v; _expandedIndex = null; }),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search help topics...',
+                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  border: InputBorder.none,
+                  isDense: true,
+                  filled: false,
+                ),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                onTap: () {
+                  _searchCtrl.clear();
+                  setState(() { _searchQuery = ''; _expandedIndex = null; });
+                },
+                child: Icon(Icons.close, color: Colors.grey[600], size: 18),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    final chips = [
+      ('Getting Started', Icons.rocket_launch_outlined, const Color(0xFFD4AF37)),
+      ('Payments', Icons.payments_outlined, Colors.teal),
+      ('Gestures', Icons.swipe_rounded, const Color(0xFF8B5CF6)),
+      ('Delete', Icons.delete_outline, Colors.red),
+    ];
+    return SizedBox(
+      height: 52,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        itemCount: chips.length,
+        itemBuilder: (_, i) {
+          final (label, icon, color) = chips[i];
+          return GestureDetector(
+            onTap: () {
+              Haptics.light();
+              setState(() { _searchQuery = label.split(' ').last.toLowerCase(); });
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, color: color, size: 14),
+                  const SizedBox(width: 6),
+                  Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCard(int index, _HelpItem item) {
+    final isExpanded = _expandedIndex == index;
+
+    return GestureDetector(
+      onTap: () {
+        Haptics.light();
+        setState(() => _expandedIndex = isExpanded ? null : index);
       },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isExpanded ? item.color.withOpacity(0.4) : Colors.white.withOpacity(0.05),
+            width: isExpanded ? 1.5 : 1,
+          ),
+          boxShadow: isExpanded
+              ? [BoxShadow(color: item.color.withOpacity(0.1), blurRadius: 16, offset: const Offset(0, 4))]
+              : null,
+        ),
+        child: Column(
+          children: [
+            // ─── Header row ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: item.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Text(item.emoji, style: const TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.summary,
+                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isExpanded ? item.color.withOpacity(0.15) : Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: isExpanded ? item.color : Colors.grey[600],
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // ─── Expanded steps ─────────────────────────────────────
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: isExpanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      child: Column(
+                        children: [
+                          Divider(color: item.color.withOpacity(0.15), height: 1),
+                          const SizedBox(height: 14),
+                          ...item.steps.asMap().entries.map((entry) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 24, height: 24,
+                                    decoration: BoxDecoration(
+                                      color: item.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${entry.key + 1}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      entry.value,
+                                      style: TextStyle(
+                                        color: Colors.grey[300],
+                                        fontSize: 13,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ).animate(delay: (entry.key * 40).ms).fadeIn(duration: 200.ms).slideX(begin: -0.05, end: 0);
+                          }),
+                          const SizedBox(height: 4),
+                          // Helpful?
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text('Helpful?', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                              const SizedBox(width: 8),
+                              _feedbackBtn(Icons.thumb_up_outlined, 'Yes', Colors.green, () {
+                                Haptics.success();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Thanks for your feedback! 👍'), duration: Duration(seconds: 1)),
+                                );
+                              }),
+                              const SizedBox(width: 4),
+                              _feedbackBtn(Icons.thumb_down_outlined, 'No', Colors.red, () {
+                                Haptics.medium();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('We\'ll improve this. Thanks!'), duration: Duration(seconds: 1)),
+                                );
+                              }),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ).animate(delay: (index * 40).ms).fadeIn(duration: 250.ms).slideY(begin: 0.05, end: 0),
+    );
+  }
+
+  Widget _feedbackBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 13),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 60, color: Colors.grey[700]),
+          const SizedBox(height: 16),
+          Text(
+            'No results for "$_searchQuery"',
+            style: GoogleFonts.outfit(color: Colors.grey[500], fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); },
+            child: Text('Clear search', style: TextStyle(color: _gold, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ).animate().fadeIn(duration: 300.ms),
     );
   }
 }
 
-class HelpSection {
+class _HelpItem {
   final IconData icon;
+  final String emoji;
+  final Color color;
   final String title;
-  final String content;
+  final String summary;
   final List<String> steps;
-
-  HelpSection({
+  const _HelpItem({
     required this.icon,
+    required this.emoji,
+    required this.color,
     required this.title,
-    required this.content,
+    required this.summary,
     required this.steps,
   });
 }

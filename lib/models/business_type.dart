@@ -26,6 +26,9 @@ class BusinessConfig {
   // Empty state messages
   final String emptyStateMessage;
 
+  // Service types for filtering
+  final List<String> serviceTypes;
+
   const BusinessConfig({
     required this.type,
     required this.displayName,
@@ -42,6 +45,7 @@ class BusinessConfig {
     required this.showClientFields,
     required this.showEventCategory,
     required this.emptyStateMessage,
+    this.serviceTypes = const [],
   });
 
   /// Get configuration for a specific business type
@@ -65,6 +69,7 @@ class BusinessConfig {
           showEventCategory: true,
           emptyStateMessage:
               'No weddings booked yet.\nTap + to create your first booking.',
+          serviceTypes: ['Wedding', 'Pre Wedding', 'Reception', 'Engagement', 'Album', 'Video', 'Drone'],
         );
 
       case BusinessType.photography:
@@ -85,6 +90,7 @@ class BusinessConfig {
           showEventCategory: false,
           emptyStateMessage:
               'No photoshoots booked yet.\nTap + to schedule your first session.',
+          serviceTypes: ['Portrait', 'Fashion', 'Pre-Wedding', 'Events', 'Product', 'Album', 'Video'],
         );
 
       case BusinessType.catering:
@@ -105,6 +111,7 @@ class BusinessConfig {
           showEventCategory: false,
           emptyStateMessage:
               'No catering orders yet.\nTap + to add your first booking.',
+          serviceTypes: ['Breakfast', 'Lunch', 'Dinner', 'Buffet', 'Cocktail', 'Custom Menu'],
         );
 
       case BusinessType.eventPlanning:
@@ -125,6 +132,7 @@ class BusinessConfig {
           showEventCategory: false,
           emptyStateMessage:
               'No events planned yet.\nTap + to create your first event.',
+          serviceTypes: ['Corporate', 'Birthday', 'Wedding', 'Conference', 'Exhibition', 'Concert'],
         );
 
       case BusinessType.general:
@@ -145,6 +153,7 @@ class BusinessConfig {
           showEventCategory: false,
           emptyStateMessage:
               'No bookings yet.\nTap + to create your first booking.',
+          serviceTypes: ['Standard', 'Premium', 'Express', 'Consultation', 'Package A', 'Package B'],
         );
     }
   }

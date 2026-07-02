@@ -116,8 +116,7 @@ class _BizLedgerAppState extends State<BizLedgerApp>
         return MaterialApp(
           title: 'BizLedger',
           debugShowCheckedModeBanner: false,
-          themeAnimationDuration: const Duration(milliseconds: 300),
-          themeAnimationCurve: Curves.easeInOutQuart,
+          themeAnimationDuration: Duration.zero,
           theme: AppTheme.lightTheme.copyWith(
             pageTransitionsTheme: const PageTransitionsTheme(
               builders: {
@@ -134,7 +133,7 @@ class _BizLedgerAppState extends State<BizLedgerApp>
               },
             ),
           ),
-          themeMode: themeService.themeMode,
+          themeMode: ThemeMode.dark,
           locale: Locale(LocalizationService().currentLanguage),
           home: AnimatedSwitcher(
             duration: const Duration(milliseconds: 500),

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vownote/services/backup_service.dart';
 import 'package:vownote/services/database_service.dart';
 
@@ -161,6 +162,8 @@ class GoogleDriveService extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           debugPrint('✅ Google Drive backup overwritten successfully.');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('last_backup_time', DateTime.now().toIso8601String());
           return true;
         } else {
           debugPrint('❌ Overwrite failed: ${response.statusCode} - ${response.body}');
@@ -201,6 +204,8 @@ class GoogleDriveService extends ChangeNotifier {
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           debugPrint('✅ Google Drive backup created successfully.');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('last_backup_time', DateTime.now().toIso8601String());
           return true;
         } else {
           debugPrint('❌ Creation failed: ${response.statusCode} - ${response.body}');
