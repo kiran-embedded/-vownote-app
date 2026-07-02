@@ -4,72 +4,91 @@ BizLedger is a high-performance business registry application designed for local
 
 ---
 
+## 🆚 Layout Evolution: Old vs New UI
+
+Below is a direct comparison showing the design evolution from the legacy dashboard to the new stateful design:
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/old_dashboard.jpeg" width="240" alt="Old Dashboard Layout"/>
+      <br/>
+      <sub><b>❌ Legacy UI (v2.3.2)</b><br/>Navigation driven by top icons inside SliverAppBar; float button layout.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/home_dashboard.jpeg" width="240" alt="New Dashboard Layout"/>
+      <br/>
+      <sub><b>✅ New UI (v2.3.4)</b><br/>Custom stateful Bottom Navigation Bar; top filter pills; dynamic name greetings.</sub>
+    </td>
+  </tr>
+</table>
+</div>
+
+---
+
 ## 📱 App Screenshot Gallery
 
 <div align="center">
 
-### Primary Viewports
+### Core Screens & Viewports
 <table>
   <tr>
     <td align="center" width="25%">
-      <img src="docs/screenshots/01_home_dashboard.jpeg" width="180" alt="Home Dashboard"/>
+      <img src="docs/screenshots/home_dashboard.jpeg" width="180" alt="Home Dashboard"/>
       <br/><sub><b>🏠 Home Dashboard</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/02_bookings_detail.jpeg" width="180" alt="Bookings Detail Feed"/>
-      <br/><sub><b>📄 Bookings Feed</b></sub>
+      <img src="docs/screenshots/home_dashboard_expanded.jpeg" width="180" alt="Home Dashboard Card Expanded"/>
+      <br/><sub><b>🔍 Expanded Card Quick Actions</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/03_calendar.jpeg" width="180" alt="Interactive Calendar"/>
+      <img src="docs/screenshots/calendar_screen.jpeg" width="180" alt="Events Calendar View"/>
       <br/><sub><b>📅 Events Calendar</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/04_insights_reports.jpeg" width="180" alt="Reports & Analytics"/>
+      <img src="docs/screenshots/reports_screen.jpeg" width="180" alt="Financial Analytics"/>
       <br/><sub><b>📊 Financial Reports</b></sub>
     </td>
   </tr>
 </table>
 
-### Gestures & Security Guardrails
+### Dynamic Pre-Filtered Feeds (Detail Screen)
 <table>
   <tr>
     <td align="center" width="25%">
-      <img src="docs/screenshots/07_swipe_to_receive.jpeg" width="180" alt="Payment Confirmation Warning"/>
-      <br/><sub><b>💸 Swipe to Receive Confirmation</b></sub>
+      <img src="docs/screenshots/active_bookings.jpeg" width="180" alt="Active Bookings Screen"/>
+      <br/><sub><b>🟢 Active Bookings</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/08_bulk_delete.jpeg" width="180" alt="Bulk Selection Delete"/>
-      <br/><sub><b>🗑️ Multi-Delete Overlay Bar</b></sub>
+      <img src="docs/screenshots/pending_bookings.jpeg" width="180" alt="Pending Amount Screen"/>
+      <br/><sub><b>🟡 Pending Dues</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/09_exit_warning.jpeg" width="180" alt="App Exit Confirmation Dialog"/>
-      <br/><sub><b>🚪 Back-Press Exit Safe-Gate</b></sub>
+      <img src="docs/screenshots/this_month_bookings.jpeg" width="180" alt="This Month Bookings Screen"/>
+      <br/><sub><b>📅 This Month</b></sub>
     </td>
     <td align="center" width="25%">
-      <img src="docs/screenshots/13_biometric_lock.jpeg" width="180" alt="Biometric Lock Screen"/>
-      <br/><sub><b>🔒 Secure Enclave Auth</b></sub>
+      <img src="docs/screenshots/completed_bookings_empty.jpeg" width="180" alt="Completed Screen Empty State"/>
+      <br/><sub><b>🔵 Completed (Empty State)</b></sub>
     </td>
   </tr>
 </table>
 
-### Forms, Filters, & Configuration
+### System Settings Layout
 <table>
   <tr>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/05_settings.jpeg" width="180" alt="Settings Screen"/>
-      <br/><sub><b>⚙️ Preferences & Cloud Sync</b></sub>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/settings_top.jpeg" width="180" alt="Settings Section Top"/>
+      <br/><sub><b>⚙️ Profile & Preferences</b></sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/06_help_center.jpeg" width="180" alt="Collapsible Help Center"/>
-      <br/><sub><b>📚 Help & Instructions Centre</b></sub>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/settings_middle.jpeg" width="180" alt="Settings Section Backup"/>
+      <br/><sub><b>☁️ Backup & Sync</b></sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/10_advanced_filters.jpeg" width="180" alt="Advanced Multi-Filter Sheet"/>
-      <br/><sub><b>🔍 Multi-Dimension Filters</b></sub>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/screenshots/11_booking_form_financial.jpeg" width="180" alt="Booking Creation Form"/>
-      <br/><sub><b>💰 Booking Form Finances</b></sub>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/settings_bottom.jpeg" width="180" alt="Settings Section About"/>
+      <br/><sub><b>ℹ️ About & Version</b></sub>
     </td>
   </tr>
 </table>
