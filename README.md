@@ -1,58 +1,91 @@
-# BizLedger
+# BizLedger (v2.3.4)
 
-BizLedger is a dynamic, high-fidelity business manager built with Flutter and SQLite. This documentation outlines the design shift and structural changes introduced in **v2.3.4** compared to the older versions.
-
----
-
-## 🆚 Design Evolution: Old vs New UI
-
-### 1. Navigation Flow
-* **Old Version**: Navigation was driven entirely by top icons inside the `SliverAppBar` actions list (e.g. settings icon, calendar icon, and business insight buttons located at the top).
-* **New Version (v2.3.4)**: Replaced top header icons with a swipeable `PageView` managed by a custom, animated **Bottom Navigation Bar**. This includes premium icon transitions (scale-up, fade-in, active glow) to navigate smoothly between:
-  * 🏠 **Home** (Dashboard)
-  * 📅 **Calendar** (Dedicated screen)
-  * 📊 **Reports** (Analytics)
-  * ⚙️ **Settings** (App preferences)
-
-### 2. Search & Filtering System
-* **Old Version**: Standard list view with basic search and minimal grouping.
-* **New Version (v2.3.4)**: Integrated a dynamic pill-based filtering system at the top of the dashboard:
-  * **📅 This Month**: Filters events in the current month (with dropdown options for Today, This Week, Last Month, Custom Range).
-  * **👤 Client**: Dynamic filter sheet to filter bookings by client.
-  * **💰 Payment**: Filter by payment status (Paid, Advance, Due, Upcoming, Cancelled).
-  * **⚙️ More Filters**: Opens a premium sheet for multi-dimensional filters (Service Type, Location worldwide, Amount ranges, and Sorting).
-  * **🔍 Comprehensive Search Engine**: Searches not just names, but also email, phone, location, event type, and booking IDs.
-
-### 3. File and Layout Restructuring
-* **`lib/ui/home_screen.dart`**: Rewritten from a single page setup to host the primary tab controller, stats grid, and bottom navigation bar.
-* **`lib/ui/bookings_detail_screen.dart` (NEW File)**: Added as a dedicated sub-screen loaded when tapping stats cards (Active Bookings, Pending Amount, Completed). Features bidirectional swiping:
-  * **Swipe Right (→)**: Share thank-you messages directly to WhatsApp with haptics.
-  * **Swipe Left (←)**: Marks pending amounts as fully received after confirming a warning bottom sheet.
-* **`lib/ui/calendar_screen.dart` (NEW File)**: Extracted into a dedicated screen for managing events by date with high-contrast indicator dots.
-* **`lib/ui/help_center_screen.dart`**: Fully redesigned into a premium AMOLED-dark layout with quick-search, collapsible guides with step-by-step numbers, and user feedback buttons.
-* **`lib/ui/settings_screen.dart`**: Cleaned up layout to run strictly in dark mode, removing the obsolete light/dark appearance switches.
+BizLedger is a high-performance business registry application designed for local persistence, offline independence, and sensory elegance. 
 
 ---
 
-## 🛠️ Key Technical Additions in v2.3.4
+## 🏗️ Technical Architecture & Persistence Model
 
-* **Exit Protection**: Integrated `PopScope` on the home screen to prevent accidental app closes. Pressing the system back button displays a custom exit confirmation dialog.
-* **Dynamic Greetings**: Replaced hardcoded "Kiran" greeting with dynamic username fetching from the signed-in Google account (`GoogleDriveService`), falling back to "Guest" for local-only setups.
-* **Compact Layouts**: Changed large currency numbers on stat widgets to use compact formats (e.g. `₹365K` instead of `₹365,000`) to guarantee compatibility across small and large phone screens.
-* **Haptics integration**: Handled confirmation actions, page transitions, and selection toggles with distinct vibration patterns.
+### 1. Unified SQLite Engine (SQL-JSON Hybrid)
+Rather than fragmenting data into individual JSON flat files (which leads to file-system descriptor exhaustion and slow query execution), BizLedger implements a single-file relational SQLite database (`BizLedger.db`).
+* **Encrypted Storage**: Relies on `sqflite_sqlcipher` to implement hardware-accelerated local data encryption using an 256-bit AES cryptographic passkey.
+* **ACID Transactions & WAL mode**: Configured with Write-Ahead Logging (`PRAGMA journal_mode = WAL;`) and relaxed synchronization (`PRAGMA synchronous = NORMAL;`) to ensure high-performance concurrent writes and reads without risking data corruption during interruptions.
+* **Triple-Lock Local Backups**: The `BackupService` triggers a full SQLite database copy to three distinct locations:
+  1. Internal App Sandbox
+  2. Public `/Documents/BizLedger/` folder for user accessibility
+  3. External Shared Storage `/BizLedger/Backups/` to survive app uninstallation
+* **WAL Checkpointing**: Before replication, the backup engine issues `PRAGMA wal_checkpoint(FULL);` to flush all transactional changes from the WAL log directly into the primary binary `.db` file, guaranteeing backup integrity.
+* **Google Drive Integration**: Auto-synchronizes the encrypted database snapshot directly to the user's Google Drive appdata folder, keeping the user's data isolated and private.
 
 ---
 
-## 📦 Getting Started
+## 🎨 User Interface & Navigation Evolution
 
-### Prerequisites
-- Flutter SDK: `3.27.0+`
-- Dart SDK: `3.0.0+`
-- SQLite environment
+The application underwent a complete design overhaul to improve usability and ergonomics.
 
-### Build & Run
+```
+OLD NAVIGATION MODEL (v2.3.2)
+[ SliverAppBar (Top Calendar Icon + Top Settings Icon + Top Insight Icons) ]
+                         │ (Taps trigger modals/pushes)
+                         ▼
+             [ Unified Dashboard List ]
+
+NEW STATEFUL NAVIGATION MODEL (v2.3.4)
+[ PageView (Horizontal Swipe / Navigation Controller) ]
+  ├── 🏠 Home Dashboard (Stats Grid, Action Pills, Bookings Feed)
+  ├── 📅 Events Calendar (Extracted Screen, Date-highlight grids)
+  ├── 📊 Financial Reports (Analytics, Compact Valuation Indicators)
+  └── ⚙️ System Settings (Biometrics, Cloud Sync, Version Check)
+                         ▲
+                         │ (Controlled by bottom viewport controller)
+[ Animated Bottom Navigation Bar (Scale transitions & active glow overlays) ]
+```
+
+### 1. PageView Navigation & Bottom Bar
+* **Old Structure**: Screens like the Calendar and Settings were pushed onto the navigation stack using icons pinned to the top header (`SliverAppBar` actions).
+* **New Structure**: Replaced with an active `PageView` coupled with a custom, low-latency **Bottom Navigation Bar**. Selected tabs animate with custom scale transitions, active background glow boxes, and text state changes.
+
+### 2. Multi-Pill Advanced Filters
+* Tapping filter chips directly executes queries:
+  * **This Month / Today / This Week**: Pre-calculates DateTime offsets to isolate bookings matching localized date lists.
+  * **Payment Pills**: Segregates clients based on remaining balance calculations (`totalWithTax - advanceReceived`).
+  * **Advanced Filter Engine**: Searches names, phone numbers, notes, locations, and booking IDs, and allows sorting by date, creation time, or invoice amount.
+
+### 3. Dedicated Sub-Screens
+* **`bookings_detail_screen.dart`**: Shows a pre-filtered list of bookings based on the clicked card, equipped with localized query states.
+* **`calendar_screen.dart`**: Displays an interactive calendar with colored indicators showing bookings and events per day.
+
+---
+
+## 👆 Gestures & User Safeguards
+
+### 1. Dual-Swipe List Operations
+List items in `BookingsDetailScreen` are wrapped with a `Dismissible` widget supporting dual actions:
+* **Swipe Right (→) to Share**: Fires `share_plus` to generate pre-formatted WhatsApp thank-you messages with client details.
+* **Swipe Left (←) to Receive**: Triggers a confirmation bottom sheet. It presents a warning (*"This will mark the full pending amount as received. This cannot be undone easily."*), prompting verification to prevent accidental updates.
+
+### 2. Selection Mode & Bulk Actions
+* Long-pressing any card in the main dashboard activates **Selection Mode**.
+* A persistent action bar slides up from the bottom showing the selection count along with `Cancel` and `Delete` actions.
+
+### 3. Exit Protection
+* Employs Flutter's `PopScope` to handle Android's system back button gestures:
+  * If in Selection Mode, back press deselects items.
+  * If on non-home tabs, back press returns to the Home dashboard page.
+  * If on the Home page, back press prompts an exit confirmation dialog.
+
+---
+
+## 🛠️ Setup & Development
+
+### Commands
 ```bash
+# Get dependencies
 flutter pub get
+
+# Generate release APK
 flutter build apk --release
+
+# Sideload build
 adb install build/app/outputs/flutter-apk/app-release.apk
 ```
